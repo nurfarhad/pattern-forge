@@ -131,6 +131,8 @@ export interface RenderOptions {
   mode: SourceMode;
   /** For fill/mask: the target node to place content inside/around */
   targetNode?: SceneNode;
+  /** Whether the target shape is rectangular (true) or non-rectangular (false) */
+  isRectangular?: boolean;
 }
 
 /**
@@ -147,7 +149,7 @@ export async function renderToFigma(
   spec: SceneSpec,
   options: RenderOptions,
 ): Promise<FrameNode> {
-  const { params, mode, targetNode } = options;
+  const { params, mode, targetNode, isRectangular } = options;
 
   // ── Pre-load fonts ─────────────────────────────────────────────────────
   const fontName = await preloadSceneFonts(params.displayFont || 'Times New Roman');
@@ -209,9 +211,10 @@ export async function renderToFigma(
       labelsGroup.name = 'Labels';
     }
 
-    // ── Selection-Fill: apply isMask for non-rectangular shapes ─────────────
-    // FR-3: true outline masking — not just bounding-box clipping
-    if (mode === 'fill' && targetNode) {
+    // ── Selection-Fill: apply isMask ONLY for non-rectangular shapes (FR-3) ──
+    // Non-rectangular shapes (star, ellipse, vector) require isMask outline-masking.
+    // Plain rectangles/frames do not need an inner mask because frame.clipsContent handles it.
+    if (mode === 'fill' && targetNode && isRectangular === false) {
       try {
         const cloned = targetNode.clone();
         cloned.x = 0;
@@ -253,17 +256,20 @@ export async function renderBatchToFigma(
 
     figma.notify(`Pattern Forge: generating ${i + 1} of ${specs.length}…`, { timeout: 1500 });
 
-    // Find the target node on the canvas
+    // Find the target node on the canvas via O(1) getNodeById
     let targetNode: SceneNode | undefined;
     try {
-      const found = figma.currentPage.findOne((n) => n.id === shape.nodeId);
-      targetNode = found ?? undefined;
+      if (shape?.nodeId) {
+        const found = figma.getNodeById(shape.nodeId);
+        targetNode = (found && 'absoluteBoundingBox' in found) ? (found as SceneNode) : undefined;
+      }
     } catch { /* ignore */ }
 
     const frame = await renderToFigma(spec, {
       params: { ...params, seed: spec.seed, outputSize: { width: shape.width, height: shape.height } },
       mode: 'fill',
       targetNode,
+      isRectangular: shape?.isRectangular ?? true,
     });
     frames.push(frame);
   }

@@ -60,7 +60,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
   const NUMBERS = ["3045", "500", "81", "6.O2", "8R", "300", "2M", "4890", "1078", "42"];
   const SUFFIXES = ["%", "cM%", "RAM", "YN", "M.", "XC%", "", "-", ".", "cloud"];
   const CONNECTORS = ["-", " ", ".", "/"];
-  function overlaps(first, second, margin = 8) {
+  function overlaps(first, second, margin = 6) {
     return first.x < second.x + second.width + margin && first.x + first.width + margin > second.x && first.y < second.y + second.height + margin && first.y + first.height + margin > second.y;
   }
   function generateCode(rng) {
@@ -83,7 +83,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     return ((_a = params.customLabels) != null ? _a : []).map((label) => label.trim()).filter(Boolean);
   }
   function generateLabels(rng, params, blocks, canvas) {
-    if (!params.labelsEnabled) return [];
+    if (!params.labelsEnabled || blocks.length === 0) return [];
     const desiredCount = Math.round(rngFloat(rng, 4, 8 + Math.max(1, params.density) * 0.4));
     const occupiedByBlocks = blocks.map((block) => ({
       x: block.x,
@@ -98,40 +98,36 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     for (let index = 0; index < desiredCount; index += 1) {
       const text = suppliedLabels.length > 0 ? suppliedLabels[index % suppliedLabels.length] : generateCode(rng);
       const size = Math.round(rngFloat(rng, 8, 13));
-      const width = Math.max(size, text.length * size * 0.52);
+      const width = Math.max(size, text.length * size * 0.54);
       const height = size * 1.3;
-      const anchor = blocks.length > 0 ? rngPick(rng, blocks) : void 0;
-      for (let attempt = 0; attempt < 18; attempt += 1) {
+      for (let attempt = 0; attempt < 24; attempt += 1) {
+        const anchor = rngPick(rng, blocks);
+        const gap = rngFloat(rng, 4, 16);
         let x;
         let y;
-        if (anchor && attempt < 12) {
-          const gap = rngFloat(rng, 6, 22);
-          switch (rngInt(rng, 0, 3)) {
-            case 0:
-              x = anchor.x + rngFloat(rng, 0, Math.max(0, anchor.width - width));
-              y = anchor.y - height - gap;
-              break;
-            case 1:
-              x = anchor.x + anchor.width + gap;
-              y = anchor.y + rngFloat(rng, 0, Math.max(0, anchor.height - height));
-              break;
-            case 2:
-              x = anchor.x + rngFloat(rng, 0, Math.max(0, anchor.width - width));
-              y = anchor.y + anchor.height + gap;
-              break;
-            default:
-              x = anchor.x - width - gap;
-              y = anchor.y + rngFloat(rng, 0, Math.max(0, anchor.height - height));
-              break;
-          }
-        } else {
-          x = rngFloat(rng, 4, Math.max(4, canvas.width - width - 4));
-          y = rngFloat(rng, 4, Math.max(4, canvas.height - height - 4));
+        const side = rngInt(rng, 0, 3);
+        switch (side) {
+          case 0:
+            x = anchor.x + rngFloat(rng, 0, Math.max(0, anchor.width - width));
+            y = anchor.y - height - gap;
+            break;
+          case 1:
+            x = anchor.x + anchor.width + gap;
+            y = anchor.y + rngFloat(rng, 0, Math.max(0, anchor.height - height));
+            break;
+          case 2:
+            x = anchor.x + rngFloat(rng, 0, Math.max(0, anchor.width - width));
+            y = anchor.y + anchor.height + gap;
+            break;
+          default:
+            x = anchor.x - width - gap;
+            y = anchor.y + rngFloat(rng, 0, Math.max(0, anchor.height - height));
+            break;
         }
         x = Math.max(4, Math.min(x, Math.max(4, canvas.width - width - 4)));
         y = Math.max(4, Math.min(y, Math.max(4, canvas.height - height - 4)));
         const candidate = { x, y, width, height };
-        const collides = occupiedByLabels.some((placed) => overlaps(candidate, placed, 6)) || occupiedByBlocks.some((block) => overlaps(candidate, block, 3));
+        const collides = occupiedByLabels.some((placed) => overlaps(candidate, placed, 4)) || occupiedByBlocks.some((block) => overlaps(candidate, block, 2));
         if (!collides) {
           occupiedByLabels.push(candidate);
           labels.push({
@@ -266,9 +262,9 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     const clusterCount = Math.round(totalBlocks * 0.64);
     const scatterCount = totalBlocks - clusterCount;
     const isMask = (constraints == null ? void 0 : constraints.mode) === "mask";
-    const clusterCx = isMask ? width * 0.5 : rngFloat(rng, width * 0.22, width * 0.58);
-    const clusterCy = isMask ? height * 0.5 : rngFloat(rng, height * 0.2, height * 0.66);
-    const clusterRadius = Math.min(width, height) * rngFloat(rng, 0.26, 0.42);
+    const clusterCx = isMask ? width * 0.5 : rngFloat(rng, width * 0.38, width * 0.62);
+    const clusterCy = isMask ? height * 0.5 : rngFloat(rng, height * 0.35, height * 0.65);
+    const clusterRadius = Math.min(width, height) * rngFloat(rng, 0.22, 0.38);
     const blocks = [];
     for (let index = 0; index < clusterCount; index += 1) {
       const blockWidth = gridSnap(
@@ -282,13 +278,17 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
         params.gridStrictness
       );
       const angle = rngFloat(rng, 0, Math.PI * 2);
-      const distance = clusterRadius * rng() * rng();
+      const distance = clusterRadius * Math.sqrt(rng());
       const centerX = clusterCx + Math.cos(angle) * distance;
       const centerY = clusterCy + Math.sin(angle) * distance;
+      const rawX = centerX - blockWidth / 2;
+      const rawY = centerY - blockHeight / 2;
+      const safeX = clamp(rawX, width * 0.02, Math.max(width * 0.02, width * 0.98 - blockWidth));
+      const safeY = clamp(rawY, height * 0.02, Math.max(height * 0.02, height * 0.98 - blockHeight));
       blocks.push({
         id: `block-cluster-${index}`,
-        x: gridSnap(centerX - blockWidth / 2, gridSize, params.gridStrictness),
-        y: gridSnap(centerY - blockHeight / 2, gridSize, params.gridStrictness),
+        x: gridSnap(safeX, gridSize, params.gridStrictness),
+        y: gridSnap(safeY, gridSize, params.gridStrictness),
         width: Math.max(blockWidth, width * 0.04),
         height: Math.max(blockHeight, height * 0.04),
         fill: tokens[index % tokens.length],
@@ -312,8 +312,8 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
       const safeHeight = Math.max(blockHeight, height * 0.02);
       blocks.push({
         id: `block-scatter-${index}`,
-        x: gridSnap(rngFloat(rng, 0, Math.max(0, width - safeWidth)), gridSize, params.gridStrictness),
-        y: gridSnap(rngFloat(rng, 0, Math.max(0, height - safeHeight)), gridSize, params.gridStrictness),
+        x: gridSnap(rngFloat(rng, width * 0.02, Math.max(width * 0.02, width * 0.98 - safeWidth)), gridSize, params.gridStrictness),
+        y: gridSnap(rngFloat(rng, height * 0.02, Math.max(height * 0.02, height * 0.98 - safeHeight)), gridSize, params.gridStrictness),
         width: safeWidth,
         height: safeHeight,
         fill: rngPick(rng, tokens),
@@ -331,10 +331,12 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
         gridSnap(rngFloat(rng, height * 0.18, height * 0.38), gridSize, params.gridStrictness),
         height * 0.12
       );
+      const gradX = rng() > 0.5 ? rngFloat(rng, width * 0.65, Math.max(width * 0.65, width * 0.95 - gradientWidth)) : rngFloat(rng, width * 0.05, Math.max(width * 0.05, width * 0.35 - gradientWidth));
+      const gradY = rngFloat(rng, height * 0.08, Math.max(height * 0.08, height * 0.7 - gradientHeight));
       gradientBlock = {
         id: "block-gradient",
-        x: gridSnap(rngFloat(rng, 0, Math.max(0, width - gradientWidth)), gridSize, params.gridStrictness),
-        y: gridSnap(rngFloat(rng, 0, Math.max(0, height - gradientHeight)), gridSize, params.gridStrictness),
+        x: gridSnap(gradX, gridSize, params.gridStrictness),
+        y: gridSnap(gradY, gridSize, params.gridStrictness),
         width: gradientWidth,
         height: gradientHeight,
         fill: "forestGreen",
@@ -365,8 +367,8 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
         textureRegions.push({
           id: `texture-${index}`,
           region: {
-            x: gridSnap(rngFloat(rng, 0, Math.max(0, width - patchWidth)), gridSize, 1),
-            y: gridSnap(rngFloat(rng, 0, Math.max(0, height - patchHeight)), gridSize, 1),
+            x: gridSnap(rngFloat(rng, width * 0.04, Math.max(width * 0.04, width * 0.96 - patchWidth)), gridSize, 1),
+            y: gridSnap(rngFloat(rng, height * 0.04, Math.max(height * 0.04, height * 0.96 - patchHeight)), gridSize, 1),
             width: patchWidth,
             height: patchHeight
           },
@@ -589,7 +591,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     return text;
   }
   async function renderToFigma(spec, options) {
-    const { params, mode, targetNode } = options;
+    const { params, mode, targetNode, isRectangular: isRectangular2 } = options;
     const fontName = await preloadSceneFonts(params.displayFont || "Times New Roman");
     let parentX = figma.viewport.center.x - spec.canvas.width / 2;
     let parentY = figma.viewport.center.y - spec.canvas.height / 2;
@@ -634,7 +636,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
         const labelsGroup = figma.group(labelNodes, frame);
         labelsGroup.name = "Labels";
       }
-      if (mode === "fill" && targetNode) {
+      if (mode === "fill" && targetNode && isRectangular2 === false) {
         try {
           const cloned = targetNode.clone();
           cloned.x = 0;
@@ -656,6 +658,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     }
   }
   async function renderBatchToFigma(specs, params, constraints) {
+    var _a;
     const frames = [];
     for (let i = 0; i < specs.length; i++) {
       const spec = specs[i];
@@ -663,14 +666,17 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
       figma.notify(`Pattern Forge: generating ${i + 1} of ${specs.length}…`, { timeout: 1500 });
       let targetNode;
       try {
-        const found = figma.currentPage.findOne((n) => n.id === shape.nodeId);
-        targetNode = found != null ? found : void 0;
+        if (shape == null ? void 0 : shape.nodeId) {
+          const found = figma.getNodeById(shape.nodeId);
+          targetNode = found && "absoluteBoundingBox" in found ? found : void 0;
+        }
       } catch (e) {
       }
       const frame = await renderToFigma(spec, {
         params: __spreadProps(__spreadValues({}, params), { seed: spec.seed, outputSize: { width: shape.width, height: shape.height } }),
         mode: "fill",
-        targetNode
+        targetNode,
+        isRectangular: (_a = shape == null ? void 0 : shape.isRectangular) != null ? _a : true
       });
       frames.push(frame);
     }
@@ -734,17 +740,19 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
             }
             const mode = (_a = constraints == null ? void 0 : constraints.mode) != null ? _a : "none";
             let targetNode;
+            let isRectangular2 = true;
             if ((constraints == null ? void 0 : constraints.mode) === "fill" || (constraints == null ? void 0 : constraints.mode) === "mask") {
               const shape = constraints.shapes[0];
               if (shape) {
+                isRectangular2 = shape.isRectangular;
                 try {
-                  const found = figma.currentPage.findOne((n) => n.id === shape.nodeId);
-                  targetNode = found != null ? found : void 0;
+                  const found = figma.getNodeById(shape.nodeId);
+                  targetNode = found && "absoluteBoundingBox" in found ? found : void 0;
                 } catch (e) {
                 }
               }
             }
-            await renderToFigma(spec, { params: paramsWithSeed, mode, targetNode });
+            await renderToFigma(spec, { params: paramsWithSeed, mode, targetNode, isRectangular: isRectangular2 });
           }
           const msg2 = {
             type: "INSERT_COMPLETE",

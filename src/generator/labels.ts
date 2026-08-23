@@ -15,7 +15,7 @@ interface Bounds {
   height: number;
 }
 
-function overlaps(first: Bounds, second: Bounds, margin = 8): boolean {
+function overlaps(first: Bounds, second: Bounds, margin = 6): boolean {
   return (
     first.x < second.x + second.width + margin &&
     first.x + first.width + margin > second.x &&
@@ -50,7 +50,7 @@ export function generateLabels(
   blocks: BlockSpec[],
   canvas: { width: number; height: number },
 ): LabelSpec[] {
-  if (!params.labelsEnabled) return [];
+  if (!params.labelsEnabled || blocks.length === 0) return [];
 
   const desiredCount = Math.round(rngFloat(rng, 4, 8 + Math.max(1, params.density) * 0.4));
   const occupiedByBlocks: Bounds[] = blocks.map((block) => ({
@@ -69,45 +69,44 @@ export function generateLabels(
       ? suppliedLabels[index % suppliedLabels.length]
       : generateCode(rng);
     const size = Math.round(rngFloat(rng, 8, 13));
-    const width = Math.max(size, text.length * size * 0.52);
+    const width = Math.max(size, text.length * size * 0.54);
     const height = size * 1.3;
-    const anchor = blocks.length > 0 ? rngPick(rng, blocks) : undefined;
 
-    for (let attempt = 0; attempt < 18; attempt += 1) {
+    // Try up to 20 placement attempts relative to random anchor blocks
+    for (let attempt = 0; attempt < 24; attempt += 1) {
+      const anchor = rngPick(rng, blocks);
+      const gap = rngFloat(rng, 4, 16);
       let x: number;
       let y: number;
-      let z: number;
 
-      if (anchor && attempt < 12) {
-        const gap = rngFloat(rng, 6, 22);
-        switch (rngInt(rng, 0, 3)) {
-          case 0:
-            x = anchor.x + rngFloat(rng, 0, Math.max(0, anchor.width - width));
-            y = anchor.y - height - gap;
-            break;
-          case 1:
-            x = anchor.x + anchor.width + gap;
-            y = anchor.y + rngFloat(rng, 0, Math.max(0, anchor.height - height));
-            break;
-          case 2:
-            x = anchor.x + rngFloat(rng, 0, Math.max(0, anchor.width - width));
-            y = anchor.y + anchor.height + gap;
-            break;
-          default:
-            x = anchor.x - width - gap;
-            y = anchor.y + rngFloat(rng, 0, Math.max(0, anchor.height - height));
-            break;
-        }
-      } else {
-        x = rngFloat(rng, 4, Math.max(4, canvas.width - width - 4));
-        y = rngFloat(rng, 4, Math.max(4, canvas.height - height - 4));
+      const side = rngInt(rng, 0, 3);
+      switch (side) {
+        case 0: // Above block
+          x = anchor.x + rngFloat(rng, 0, Math.max(0, anchor.width - width));
+          y = anchor.y - height - gap;
+          break;
+        case 1: // Right of block
+          x = anchor.x + anchor.width + gap;
+          y = anchor.y + rngFloat(rng, 0, Math.max(0, anchor.height - height));
+          break;
+        case 2: // Below block
+          x = anchor.x + rngFloat(rng, 0, Math.max(0, anchor.width - width));
+          y = anchor.y + anchor.height + gap;
+          break;
+        default: // Left of block
+          x = anchor.x - width - gap;
+          y = anchor.y + rngFloat(rng, 0, Math.max(0, anchor.height - height));
+          break;
       }
 
+      // Ensure label stays within canvas boundary with 4px margin
       x = Math.max(4, Math.min(x, Math.max(4, canvas.width - width - 4)));
       y = Math.max(4, Math.min(y, Math.max(4, canvas.height - height - 4)));
-      const candidate = { x, y, width, height };
-      const collides = occupiedByLabels.some((placed) => overlaps(candidate, placed, 6)) ||
-        occupiedByBlocks.some((block) => overlaps(candidate, block, 3));
+      const candidate: Bounds = { x, y, width, height };
+
+      const collides =
+        occupiedByLabels.some((placed) => overlaps(candidate, placed, 4)) ||
+        occupiedByBlocks.some((block) => overlaps(candidate, block, 2));
 
       if (!collides) {
         occupiedByLabels.push(candidate);

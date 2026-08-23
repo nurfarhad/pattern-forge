@@ -82,18 +82,20 @@ figma.ui.onmessage = async (rawMsg: UIToMainMessage) => {
 
           const mode = constraints?.mode ?? 'none';
           let targetNode: SceneNode | undefined;
+          let isRectangular = true;
 
           if (constraints?.mode === 'fill' || constraints?.mode === 'mask') {
             const shape = constraints.shapes[0];
             if (shape) {
+              isRectangular = shape.isRectangular;
               try {
-                const found = figma.currentPage.findOne((n) => n.id === shape.nodeId);
-                targetNode = found ?? undefined;
+                const found = figma.getNodeById(shape.nodeId);
+                targetNode = (found && 'absoluteBoundingBox' in found) ? (found as SceneNode) : undefined;
               } catch { /* ignore */ }
             }
           }
 
-          await renderToFigma(spec, { params: paramsWithSeed, mode, targetNode });
+          await renderToFigma(spec, { params: paramsWithSeed, mode, targetNode, isRectangular });
         }
 
         const msg: MainToUIMessage = {

@@ -94,12 +94,12 @@ export function generateLayout(
   const clusterCount = Math.round(totalBlocks * 0.64);
   const scatterCount = totalBlocks - clusterCount;
 
-  // The renderer places a mask-mode field relative to the selected anchor. Within
-  // the field, keep the cluster central so it can spill in every direction.
+  // Organically center the dense cluster in the primary visual area [0.38..0.62]
+  // so the composition stays balanced across all canvas dimensions.
   const isMask = constraints?.mode === 'mask';
-  const clusterCx = isMask ? width * 0.5 : rngFloat(rng, width * 0.22, width * 0.58);
-  const clusterCy = isMask ? height * 0.5 : rngFloat(rng, height * 0.2, height * 0.66);
-  const clusterRadius = Math.min(width, height) * rngFloat(rng, 0.26, 0.42);
+  const clusterCx = isMask ? width * 0.5 : rngFloat(rng, width * 0.38, width * 0.62);
+  const clusterCy = isMask ? height * 0.5 : rngFloat(rng, height * 0.35, height * 0.65);
+  const clusterRadius = Math.min(width, height) * rngFloat(rng, 0.22, 0.38);
   const blocks: BlockSpec[] = [];
 
   for (let index = 0; index < clusterCount; index += 1) {
@@ -114,14 +114,19 @@ export function generateLayout(
       params.gridStrictness,
     );
     const angle = rngFloat(rng, 0, Math.PI * 2);
-    const distance = clusterRadius * rng() * rng();
+    const distance = clusterRadius * Math.sqrt(rng());
     const centerX = clusterCx + Math.cos(angle) * distance;
     const centerY = clusterCy + Math.sin(angle) * distance;
 
+    const rawX = centerX - blockWidth / 2;
+    const rawY = centerY - blockHeight / 2;
+    const safeX = clamp(rawX, width * 0.02, Math.max(width * 0.02, width * 0.98 - blockWidth));
+    const safeY = clamp(rawY, height * 0.02, Math.max(height * 0.02, height * 0.98 - blockHeight));
+
     blocks.push({
       id: `block-cluster-${index}`,
-      x: gridSnap(centerX - blockWidth / 2, gridSize, params.gridStrictness),
-      y: gridSnap(centerY - blockHeight / 2, gridSize, params.gridStrictness),
+      x: gridSnap(safeX, gridSize, params.gridStrictness),
+      y: gridSnap(safeY, gridSize, params.gridStrictness),
       width: Math.max(blockWidth, width * 0.04),
       height: Math.max(blockHeight, height * 0.04),
       fill: tokens[index % tokens.length],
@@ -151,8 +156,8 @@ export function generateLayout(
 
     blocks.push({
       id: `block-scatter-${index}`,
-      x: gridSnap(rngFloat(rng, 0, Math.max(0, width - safeWidth)), gridSize, params.gridStrictness),
-      y: gridSnap(rngFloat(rng, 0, Math.max(0, height - safeHeight)), gridSize, params.gridStrictness),
+      x: gridSnap(rngFloat(rng, width * 0.02, Math.max(width * 0.02, width * 0.98 - safeWidth)), gridSize, params.gridStrictness),
+      y: gridSnap(rngFloat(rng, height * 0.02, Math.max(height * 0.02, height * 0.98 - safeHeight)), gridSize, params.gridStrictness),
       width: safeWidth,
       height: safeHeight,
       fill: rngPick(rng, tokens),
@@ -172,10 +177,16 @@ export function generateLayout(
       height * 0.12,
     );
 
+    // Place vertical gradient block in upper/outer quadrant to anchor composition
+    const gradX = rng() > 0.5
+      ? rngFloat(rng, width * 0.65, Math.max(width * 0.65, width * 0.95 - gradientWidth))
+      : rngFloat(rng, width * 0.05, Math.max(width * 0.05, width * 0.35 - gradientWidth));
+    const gradY = rngFloat(rng, height * 0.08, Math.max(height * 0.08, height * 0.7 - gradientHeight));
+
     gradientBlock = {
       id: 'block-gradient',
-      x: gridSnap(rngFloat(rng, 0, Math.max(0, width - gradientWidth)), gridSize, params.gridStrictness),
-      y: gridSnap(rngFloat(rng, 0, Math.max(0, height - gradientHeight)), gridSize, params.gridStrictness),
+      x: gridSnap(gradX, gridSize, params.gridStrictness),
+      y: gridSnap(gradY, gridSize, params.gridStrictness),
       width: gradientWidth,
       height: gradientHeight,
       fill: 'forestGreen',
@@ -207,8 +218,8 @@ export function generateLayout(
       textureRegions.push({
         id: `texture-${index}`,
         region: {
-          x: gridSnap(rngFloat(rng, 0, Math.max(0, width - patchWidth)), gridSize, 1),
-          y: gridSnap(rngFloat(rng, 0, Math.max(0, height - patchHeight)), gridSize, 1),
+          x: gridSnap(rngFloat(rng, width * 0.04, Math.max(width * 0.04, width * 0.96 - patchWidth)), gridSize, 1),
+          y: gridSnap(rngFloat(rng, height * 0.04, Math.max(height * 0.04, height * 0.96 - patchHeight)), gridSize, 1),
           width: patchWidth,
           height: patchHeight,
         },
