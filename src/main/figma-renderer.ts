@@ -37,8 +37,6 @@ function angleToGradientTransform(angleDeg: number, x: number, y: number, w: num
 
 // ─── Guard: ensure opacity is always a finite 0–1 number ─────────────────
 // Figma's set_opacity validator rejects undefined, null, NaN, and Infinity.
-// Preview canvas silently ignores these — which is why the crash only shows
-// up on Insert, not in the live preview.
 
 function safeOpacity(v: unknown, fallback = 1): number {
   if (typeof v === 'number' && Number.isFinite(v)) {
@@ -56,16 +54,14 @@ function createBlockNode(block: BlockSpec, parentX: number, parentY: number): Re
   rect.y = block.y - parentY;
   rect.resize(Math.max(block.width, 1), Math.max(block.height, 1));
   rect.opacity = safeOpacity(block.opacity);
-  rect.blendMode = block.blendMode;
+  rect.blendMode = block.blendMode || 'NORMAL';
 
-  // Detect gradient block by presence of the .gradient property, not .isGradient
-  // (layout.ts sets .gradient but never sets .isGradient — the flag is unused)
   if (block.gradient != null) {
     // FR-9: GRADIENT_LINEAR paint — editable via Figma's gradient handle UI
     const { gradient } = block;
     const stops: ColorStop[] = gradient.stops.map((s) => ({
       position: s.position,
-      color: { ...resolveToken(s.color), a: s.opacity },
+      color: { ...resolveToken(s.color), a: safeOpacity(s.opacity) },
     }));
 
     rect.fills = [{
@@ -101,7 +97,7 @@ function createTextureNode(tex: TextureSpec, parentX: number, parentY: number): 
   node.opacity = safeOpacity(tex.opacity);
 
   // Resize to exact region (SVG intrinsic size matches, but be safe)
-  node.resize(tex.region.width, tex.region.height);
+  node.resize(Math.max(1, tex.region.width), Math.max(1, tex.region.height));
 
   return node;
 }
@@ -117,7 +113,7 @@ async function createLabelNode(
   const text = figma.createText();
   text.name = label.id;
   text.fontName = fontName;
-  text.fontSize = label.size;
+  text.fontSize = Math.max(1, label.size);
   text.characters = label.text;
   text.x = label.x - parentX;
   text.y = label.y - parentY;
@@ -152,7 +148,7 @@ export async function renderToFigma(
   const { params, mode, targetNode } = options;
 
   // ── Pre-load fonts ─────────────────────────────────────────────────────
-  const fontName = await preloadSceneFonts(params.displayFont);
+  const fontName = await preloadSceneFonts(params.displayFont || 'Times New Roman');
 
   // ── Determine parent frame position ────────────────────────────────────
   let parentX = figma.viewport.center.x - spec.canvas.width / 2;
@@ -169,7 +165,7 @@ export async function renderToFigma(
   frame.name = `Pattern — seed ${spec.seed}`;
   frame.x = parentX;
   frame.y = parentY;
-  frame.resize(spec.canvas.width, spec.canvas.height);
+  frame.resize(Math.max(1, spec.canvas.width), Math.max(1, spec.canvas.height));
   frame.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
   frame.clipsContent = true;
 
@@ -178,12 +174,14 @@ export async function renderToFigma(
     ...spec.blocks,
     ...(spec.gradientBlock ? [spec.gradientBlock] : []),
   ];
-  const blockNodes: RectangleNode[] = allBlocksToRender.map((block) =>
-    createBlockNode(block, parentX, parentY)
-  );
-  const blocksGroup = figma.group(blockNodes, figma.currentPage);
-  blocksGroup.name = 'Blocks';
-  frame.appendChild(blocksGroup);
+  if (allBlocksToRender.length > 0) {
+    const blockNodes: RectangleNode[] = allBlocksToRender.map((block) =>
+      createBlockNode(block, parentX, parentY)
+    );
+    const blocksGroup = figma.group(blockNodes, figma.currentPage);
+    blocksGroup.name = 'Blocks';
+    frame.appendChild(blocksGroup);
+  }
 
   // ── Texture group ────────────────────────────────────────────────────────
   if (spec.textureRegions.length > 0) {
@@ -208,9 +206,6 @@ export async function renderToFigma(
   // ── Selection-Fill: apply isMask for non-rectangular shapes ─────────────
   // FR-3: true outline masking — not just bounding-box clipping
   if (mode === 'fill' && targetNode) {
-    const shapeConstraint = options.params; // (isRectangular is carried via constraints)
-    // isMask approach: clone the original shape, put it inside the frame,
-    // set isMask = true. The cloned shape clips all siblings below it in the frame.
     try {
       const cloned = targetNode.clone();
       cloned.x = 0;

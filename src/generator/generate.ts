@@ -51,8 +51,10 @@ export function generateBatch(
       activeTokens: [...params.activeTokens],
       scaleRange: [...params.scaleRange],
       opacityRange: [...params.opacityRange],
+      blendModes: [...params.blendModes],
       customLabels: params.customLabels ? [...params.customLabels] : undefined,
       outputSize: { width: shape.width, height: shape.height },
+      displayFont: params.displayFont,
     };
     return generateScene(derivedParams, { mode: 'fill', shapes: [shape] });
   });

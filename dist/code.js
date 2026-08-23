@@ -94,6 +94,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     const occupiedByLabels = [];
     const labels = [];
     const suppliedLabels = customSource(params);
+    const fontFamily = params.displayFont || DEFAULT_LABEL_FONT;
     for (let index = 0; index < desiredCount; index += 1) {
       const text = suppliedLabels.length > 0 ? suppliedLabels[index % suppliedLabels.length] : generateCode(rng);
       const size = Math.round(rngFloat(rng, 8, 13));
@@ -139,7 +140,8 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
             y,
             text,
             size,
-            fontFamily: DEFAULT_LABEL_FONT
+            fontFamily,
+            opacity: 0.85
           });
           break;
         }
@@ -259,6 +261,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     const scatterMinOpacity = Math.min(maxOpacity, Math.max(0.7, minOpacity));
     const tokenSource = params.activeTokens.length > 0 ? params.activeTokens : ["alertRed"];
     const tokens = rngShuffle(rng, tokenSource);
+    const blendModeSource = params.blendModes.length > 0 ? params.blendModes : ["NORMAL"];
     const totalBlocks = blockCount(params.density, width, height);
     const clusterCount = Math.round(totalBlocks * 0.64);
     const scatterCount = totalBlocks - clusterCount;
@@ -290,7 +293,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
         height: Math.max(blockHeight, height * 0.04),
         fill: tokens[index % tokens.length],
         opacity: rngFloat(rng, minOpacity, maxOpacity),
-        blendMode: params.blendMode
+        blendMode: rngPick(rng, blendModeSource)
       });
     }
     for (let index = 0; index < scatterCount; index += 1) {
@@ -369,7 +372,8 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
           },
           dotSize: DEFAULT_DOT_SIZE,
           spacing: textureSpacingForRegion(params.textureDensity, patchWidth, patchHeight),
-          ink: "ink"
+          ink: "ink",
+          opacity: rngFloat(rng, 0.08, 0.22)
         });
       }
     }
@@ -407,8 +411,10 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
         activeTokens: [...params.activeTokens],
         scaleRange: [...params.scaleRange],
         opacityRange: [...params.opacityRange],
+        blendModes: [...params.blendModes],
         customLabels: params.customLabels ? [...params.customLabels] : void 0,
-        outputSize: { width: shape.width, height: shape.height }
+        outputSize: { width: shape.width, height: shape.height },
+        displayFont: params.displayFont
       });
       return generateScene(derivedParams, { mode: "fill", shapes: [shape] });
     });
@@ -531,12 +537,12 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     rect.y = block.y - parentY;
     rect.resize(Math.max(block.width, 1), Math.max(block.height, 1));
     rect.opacity = safeOpacity(block.opacity);
-    rect.blendMode = block.blendMode;
+    rect.blendMode = block.blendMode || "NORMAL";
     if (block.gradient != null) {
       const { gradient } = block;
       const stops = gradient.stops.map((s) => ({
         position: s.position,
-        color: __spreadProps(__spreadValues({}, resolveToken(s.color)), { a: s.opacity })
+        color: __spreadProps(__spreadValues({}, resolveToken(s.color)), { a: safeOpacity(s.opacity) })
       }));
       rect.fills = [{
         type: "GRADIENT_LINEAR",
@@ -563,14 +569,14 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     node.x = tex.region.x - parentX;
     node.y = tex.region.y - parentY;
     node.opacity = safeOpacity(tex.opacity);
-    node.resize(tex.region.width, tex.region.height);
+    node.resize(Math.max(1, tex.region.width), Math.max(1, tex.region.height));
     return node;
   }
   async function createLabelNode(label, parentX, parentY, fontName) {
     const text = figma.createText();
     text.name = label.id;
     text.fontName = fontName;
-    text.fontSize = label.size;
+    text.fontSize = Math.max(1, label.size);
     text.characters = label.text;
     text.x = label.x - parentX;
     text.y = label.y - parentY;
@@ -580,7 +586,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
   }
   async function renderToFigma(spec, options) {
     const { params, mode, targetNode } = options;
-    const fontName = await preloadSceneFonts(params.displayFont);
+    const fontName = await preloadSceneFonts(params.displayFont || "Times New Roman");
     let parentX = figma.viewport.center.x - spec.canvas.width / 2;
     let parentY = figma.viewport.center.y - spec.canvas.height / 2;
     if (targetNode && (mode === "fill" || mode === "mask")) {
@@ -594,19 +600,21 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     frame.name = `Pattern — seed ${spec.seed}`;
     frame.x = parentX;
     frame.y = parentY;
-    frame.resize(spec.canvas.width, spec.canvas.height);
+    frame.resize(Math.max(1, spec.canvas.width), Math.max(1, spec.canvas.height));
     frame.fills = [{ type: "SOLID", color: { r: 1, g: 1, b: 1 } }];
     frame.clipsContent = true;
     const allBlocksToRender = [
       ...spec.blocks,
       ...spec.gradientBlock ? [spec.gradientBlock] : []
     ];
-    const blockNodes = allBlocksToRender.map(
-      (block) => createBlockNode(block, parentX, parentY)
-    );
-    const blocksGroup = figma.group(blockNodes, figma.currentPage);
-    blocksGroup.name = "Blocks";
-    frame.appendChild(blocksGroup);
+    if (allBlocksToRender.length > 0) {
+      const blockNodes = allBlocksToRender.map(
+        (block) => createBlockNode(block, parentX, parentY)
+      );
+      const blocksGroup = figma.group(blockNodes, figma.currentPage);
+      blocksGroup.name = "Blocks";
+      frame.appendChild(blocksGroup);
+    }
     if (spec.textureRegions.length > 0) {
       const texNodes = spec.textureRegions.map(
         (tex) => createTextureNode(tex, parentX, parentY)
@@ -624,7 +632,6 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
       frame.appendChild(labelsGroup);
     }
     if (mode === "fill" && targetNode) {
-      options.params;
       try {
         const cloned = targetNode.clone();
         cloned.x = 0;

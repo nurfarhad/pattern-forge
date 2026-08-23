@@ -370,7 +370,20 @@ export const App: React.FC = () => {
                 </>
               )}
 
-              <p className="pf-help">Display font: Times New Roman (the PRD's structural placeholder).</p>
+              <div>
+                <div style={{ fontSize: 10, color: 'var(--pf-text-secondary)', marginBottom: 4, fontWeight: 500 }}>
+                  Font (display serif)
+                </div>
+                <input
+                  className="pf-input"
+                  id="pf-label-font"
+                  type="text"
+                  value={params.displayFont}
+                  onChange={(e) => setParam('displayFont', e.target.value)}
+                  placeholder="Times New Roman"
+                />
+                <p className="pf-help">Must be installed in Figma. Times New Roman is the default placeholder.</p>
+              </div>
             </>
           )}
         </Panel>

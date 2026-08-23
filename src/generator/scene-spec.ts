@@ -1,5 +1,5 @@
-// Shared, renderer-agnostic data contract from PRD Section 9.
-// These three root shapes are intentionally literal: do not extend them in place.
+// ─── Shared Scene Spec & Data Contract ─────────────────────────────────────
+// The single source of truth for types across UI iframe, generator, and Figma main thread.
 
 export type PaletteToken =
   | 'signalOrange'
@@ -25,6 +25,11 @@ export interface RGBColor {
 
 export type BlendMode = 'NORMAL' | 'MULTIPLY' | 'SCREEN' | 'DARKEN';
 
+export type GradientSpec = {
+  angleDeg: number;
+  stops: { position: number; color: PaletteToken; opacity: number }[];
+};
+
 export type BlockSpec = {
   id: string;
   x: number;
@@ -34,6 +39,7 @@ export type BlockSpec = {
   fill: PaletteToken;
   opacity: number;
   blendMode: BlendMode;
+  gradient?: GradientSpec;
 };
 
 export type TextureSpec = {
@@ -42,6 +48,7 @@ export type TextureSpec = {
   dotSize: number;
   spacing: number;
   ink: PaletteToken;
+  opacity: number;
 };
 
 export type LabelSpec = {
@@ -51,11 +58,7 @@ export type LabelSpec = {
   text: string;
   size: number;
   fontFamily: string;
-};
-
-export type GradientSpec = {
-  angleDeg: number;
-  stops: { position: number; color: PaletteToken; opacity: number }[];
+  opacity: number;
 };
 
 export type SceneSpec = {
@@ -73,7 +76,7 @@ export type GenerationParams = {
   density: number;
   scaleRange: [number, number];
   gridStrictness: number;
-  blendModes: BlockSpec['blendMode'][];
+  blendModes: BlendMode[];
   opacityRange: [number, number];
   textureEnabled: boolean;
   textureDensity: number;
@@ -82,6 +85,7 @@ export type GenerationParams = {
   labelSource: 'generated' | 'custom';
   customLabels?: string[];
   outputSize: { width: number; height: number };
+  displayFont: string;
 };
 
 export type SelectionConstraints = {
@@ -168,4 +172,5 @@ export const DEFAULT_PARAMS: GenerationParams = {
   labelsEnabled: true,
   labelSource: 'generated',
   outputSize: { width: 1080, height: 1080 },
+  displayFont: 'Times New Roman',
 };

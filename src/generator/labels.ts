@@ -62,6 +62,7 @@ export function generateLabels(
   const occupiedByLabels: Bounds[] = [];
   const labels: LabelSpec[] = [];
   const suppliedLabels = customSource(params);
+  const fontFamily = params.displayFont || DEFAULT_LABEL_FONT;
 
   for (let index = 0; index < desiredCount; index += 1) {
     const text = suppliedLabels.length > 0
@@ -75,6 +76,7 @@ export function generateLabels(
     for (let attempt = 0; attempt < 18; attempt += 1) {
       let x: number;
       let y: number;
+      let z: number;
 
       if (anchor && attempt < 12) {
         const gap = rngFloat(rng, 6, 22);
@@ -115,7 +117,8 @@ export function generateLabels(
           y,
           text,
           size,
-          fontFamily: DEFAULT_LABEL_FONT,
+          fontFamily,
+          opacity: 0.85,
         });
         break;
       }

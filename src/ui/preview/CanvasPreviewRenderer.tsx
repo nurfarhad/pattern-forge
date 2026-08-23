@@ -43,7 +43,7 @@ function loadTexture(spec: TextureSpec): Promise<HTMLImageElement> {
 function drawSolidBlock(context: CanvasRenderingContext2D, block: BlockSpec): void {
   context.save();
   context.globalAlpha = block.opacity;
-  context.globalCompositeOperation = BLEND_MAP[block.blendMode];
+  context.globalCompositeOperation = BLEND_MAP[block.blendMode] || 'source-over';
   context.fillStyle = tokenToCss(block.fill);
   context.fillRect(block.x, block.y, block.width, block.height);
   context.restore();
@@ -73,7 +73,7 @@ function drawGradientBlock(
 
   context.save();
   context.globalAlpha = block.opacity;
-  context.globalCompositeOperation = BLEND_MAP[block.blendMode];
+  context.globalCompositeOperation = BLEND_MAP[block.blendMode] || 'source-over';
   context.fillStyle = gradient;
   context.fillRect(block.x, block.y, block.width, block.height);
   context.restore();
@@ -123,6 +123,8 @@ export const CanvasPreviewRenderer: React.FC<CanvasPreviewRendererProps> = ({ sp
       try {
         const image = await loadTexture(texture);
         if (renderId !== renderIdRef.current) return;
+        context.save();
+        context.globalAlpha = texture.opacity;
         context.drawImage(
           image,
           texture.region.x,
@@ -130,6 +132,7 @@ export const CanvasPreviewRenderer: React.FC<CanvasPreviewRendererProps> = ({ sp
           texture.region.width,
           texture.region.height,
         );
+        context.restore();
       } catch {
         // The rest of the preview remains useful if one SVG cannot be decoded.
       }
@@ -140,8 +143,11 @@ export const CanvasPreviewRenderer: React.FC<CanvasPreviewRendererProps> = ({ sp
     context.textBaseline = 'top';
     for (const label of spec.labels) {
       if (renderId !== renderIdRef.current) return;
+      context.save();
+      context.globalAlpha = label.opacity;
       context.font = `${label.size}px "${label.fontFamily}", "Times New Roman", serif`;
       context.fillText(label.text, label.x, label.y);
+      context.restore();
     }
     context.restore();
 

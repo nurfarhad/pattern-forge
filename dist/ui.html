@@ -7344,7 +7344,7 @@ function loadTexture(spec) {
 function drawSolidBlock(context, block) {
   context.save();
   context.globalAlpha = block.opacity;
-  context.globalCompositeOperation = BLEND_MAP[block.blendMode];
+  context.globalCompositeOperation = BLEND_MAP[block.blendMode] || "source-over";
   context.fillStyle = tokenToCss(block.fill);
   context.fillRect(block.x, block.y, block.width, block.height);
   context.restore();
@@ -7366,7 +7366,7 @@ function drawGradientBlock(context, block, gradientSpec) {
   });
   context.save();
   context.globalAlpha = block.opacity;
-  context.globalCompositeOperation = BLEND_MAP[block.blendMode];
+  context.globalCompositeOperation = BLEND_MAP[block.blendMode] || "source-over";
   context.fillStyle = gradient;
   context.fillRect(block.x, block.y, block.width, block.height);
   context.restore();
@@ -7408,6 +7408,8 @@ const CanvasPreviewRenderer = ({ spec, onRender }) => {
       try {
         const image = await loadTexture(texture);
         if (renderId !== renderIdRef.current) return;
+        context.save();
+        context.globalAlpha = texture.opacity;
         context.drawImage(
           image,
           texture.region.x,
@@ -7415,6 +7417,7 @@ const CanvasPreviewRenderer = ({ spec, onRender }) => {
           texture.region.width,
           texture.region.height
         );
+        context.restore();
       } catch (e) {
       }
     }
@@ -7423,8 +7426,11 @@ const CanvasPreviewRenderer = ({ spec, onRender }) => {
     context.textBaseline = "top";
     for (const label of spec.labels) {
       if (renderId !== renderIdRef.current) return;
+      context.save();
+      context.globalAlpha = label.opacity;
       context.font = `${label.size}px "${label.fontFamily}", "Times New Roman", serif`;
       context.fillText(label.text, label.x, label.y);
+      context.restore();
     }
     context.restore();
     if (onRender && renderId === renderIdRef.current) {
@@ -7677,14 +7683,15 @@ const DEFAULT_PARAMS = {
   density: 6,
   scaleRange: [0.05, 0.45],
   gridStrictness: 0.4,
-  blendMode: "MULTIPLY",
+  blendModes: ["MULTIPLY"],
   opacityRange: [0.55, 1],
   textureEnabled: true,
   textureDensity: 1,
   gradientEnabled: true,
   labelsEnabled: true,
   labelSource: "generated",
-  outputSize: { width: 1080, height: 1080 }
+  outputSize: { width: 1080, height: 1080 },
+  displayFont: "Times New Roman"
 };
 function hashString(str) {
   let hash = 0;
@@ -7761,6 +7768,7 @@ function generateLabels(rng, params, blocks, canvas) {
   const occupiedByLabels = [];
   const labels = [];
   const suppliedLabels = customSource(params);
+  const fontFamily = params.displayFont || DEFAULT_LABEL_FONT;
   for (let index = 0; index < desiredCount; index += 1) {
     const text = suppliedLabels.length > 0 ? suppliedLabels[index % suppliedLabels.length] : generateCode(rng);
     const size = Math.round(rngFloat(rng, 8, 13));
@@ -7806,7 +7814,8 @@ function generateLabels(rng, params, blocks, canvas) {
           y: y2,
           text,
           size,
-          fontFamily: DEFAULT_LABEL_FONT
+          fontFamily,
+          opacity: 0.85
         });
         break;
       }
@@ -7861,6 +7870,7 @@ function generateLayout(params, constraints, rng) {
   const scatterMinOpacity = Math.min(maxOpacity, Math.max(0.7, minOpacity));
   const tokenSource = params.activeTokens.length > 0 ? params.activeTokens : ["alertRed"];
   const tokens = rngShuffle(rng, tokenSource);
+  const blendModeSource = params.blendModes.length > 0 ? params.blendModes : ["NORMAL"];
   const totalBlocks = blockCount(params.density, width, height);
   const clusterCount = Math.round(totalBlocks * 0.64);
   const scatterCount = totalBlocks - clusterCount;
@@ -7892,7 +7902,7 @@ function generateLayout(params, constraints, rng) {
       height: Math.max(blockHeight, height * 0.04),
       fill: tokens[index % tokens.length],
       opacity: rngFloat(rng, minOpacity, maxOpacity),
-      blendMode: params.blendMode
+      blendMode: rngPick(rng, blendModeSource)
     });
   }
   for (let index = 0; index < scatterCount; index += 1) {
@@ -7971,7 +7981,8 @@ function generateLayout(params, constraints, rng) {
         },
         dotSize: DEFAULT_DOT_SIZE,
         spacing: textureSpacingForRegion(params.textureDensity, patchWidth, patchHeight),
-        ink: "ink"
+        ink: "ink",
+        opacity: rngFloat(rng, 0.08, 0.22)
       });
     }
   }
@@ -8011,7 +8022,7 @@ const BUILT_IN_PRESETS = [
       density: 9,
       scaleRange: [0.08, 0.48],
       gridStrictness: 0.3,
-      blendMode: "MULTIPLY",
+      blendModes: ["MULTIPLY"],
       opacityRange: [0.55, 0.95],
       textureEnabled: true,
       textureDensity: 1.4,
@@ -8026,7 +8037,7 @@ const BUILT_IN_PRESETS = [
       density: 3,
       scaleRange: [0.04, 0.22],
       gridStrictness: 0.7,
-      blendMode: "NORMAL",
+      blendModes: ["NORMAL"],
       opacityRange: [0.75, 1],
       textureEnabled: true,
       textureDensity: 0.7,
@@ -8041,7 +8052,7 @@ const BUILT_IN_PRESETS = [
       density: 5,
       scaleRange: [0.15, 0.55],
       gridStrictness: 0.85,
-      blendMode: "DARKEN",
+      blendModes: ["DARKEN"],
       opacityRange: [0.85, 1],
       textureEnabled: false,
       activeTokens: ["alertRed", "electricViolet", "ink"]
@@ -8433,16 +8444,24 @@ const App = () => {
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 10, color: "var(--pf-text-secondary)", marginBottom: 4, fontWeight: 500 }, children: "Blend Mode" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", gap: 4, flexWrap: "wrap" }, children: ["NORMAL", "MULTIPLY", "SCREEN", "DARKEN"].map((bm) => /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "button",
-            {
-              id: `pf-blend-${bm.toLowerCase()}`,
-              className: `pf-size-chip ${params.blendMode === bm ? "pf-size-chip--active" : ""}`,
-              onClick: () => setParam("blendMode", bm),
-              children: bm
-            },
-            bm
-          )) })
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", gap: 4, flexWrap: "wrap" }, children: ["NORMAL", "MULTIPLY", "SCREEN", "DARKEN"].map((bm) => {
+            const isActive = params.blendModes.includes(bm);
+            return /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "button",
+              {
+                id: `pf-blend-${bm.toLowerCase()}`,
+                className: `pf-size-chip ${isActive ? "pf-size-chip--active" : ""}`,
+                "aria-pressed": isActive,
+                onClick: () => {
+                  if (isActive && params.blendModes.length <= 1) return;
+                  const next = isActive ? params.blendModes.filter((m2) => m2 !== bm) : [...params.blendModes, bm];
+                  setParam("blendModes", next);
+                },
+                children: bm
+              },
+              bm
+            );
+          }) })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pf-toggle-row", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pf-toggle-row__label", children: "Halftone Texture" }),
@@ -8539,7 +8558,21 @@ const App = () => {
             ),
             /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "pf-help", children: "One entry per line. Leave empty to fall back to generated codes." })
           ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "pf-help", children: "Display font: Times New Roman (the PRD's structural placeholder)." })
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 10, color: "var(--pf-text-secondary)", marginBottom: 4, fontWeight: 500 }, children: "Font (display serif)" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                className: "pf-input",
+                id: "pf-label-font",
+                type: "text",
+                value: params.displayFont,
+                onChange: (e) => setParam("displayFont", e.target.value),
+                placeholder: "Times New Roman"
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "pf-help", children: "Must be installed in Figma. Times New Roman is the default placeholder." })
+          ] })
         ] })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs(Panel, { title: "Output Size", id: "pf-panel-output", children: [

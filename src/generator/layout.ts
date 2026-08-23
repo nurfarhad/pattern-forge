@@ -77,7 +77,7 @@ export function generateLayout(
   rng: () => number,
 ): LayoutResult {
   const canvas = resolveCanvasSize(params, constraints);
-  const { width: width, height: height } = canvas;
+  const { width, height } = canvas;
   const gridSize = Math.max(1, width / 24);
   const [minScale, maxScaleRaw] = normalizedRange(params.scaleRange, 0.01, 0.8);
   const maxScale = Math.min(maxScaleRaw, 0.55);
@@ -215,6 +215,7 @@ export function generateLayout(
         dotSize: DEFAULT_DOT_SIZE,
         spacing: textureSpacingForRegion(params.textureDensity, patchWidth, patchHeight),
         ink: 'ink',
+        opacity: rngFloat(rng, 0.08, 0.22),
       });
     }
   }
