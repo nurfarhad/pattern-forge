@@ -1,0 +1,45 @@
+.pf-panel {
+  border-bottom: 1px solid var(--pf-border);
+}
+
+.pf-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 9px 14px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--pf-text-primary);
+  transition: background 0.15s;
+}
+
+.pf-panel__header:hover {
+  background: var(--pf-hover);
+}
+
+.pf-panel__title {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pf-text-secondary);
+}
+
+.pf-panel__chevron {
+  color: var(--pf-text-muted);
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+
+.pf-panel--open .pf-panel__chevron {
+  transform: rotate(180deg);
+}
+
+.pf-panel__body {
+  padding: 10px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}

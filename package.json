@@ -1,0 +1,29 @@
+{
+  "name": "pattern-forge",
+  "version": "0.1.0",
+  "description": "Figma plugin — generative brand pattern generator",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:ui":   "vite build",
+    "build:code": "node build-code.mjs",
+    "build":      "npm run build:ui && npm run build:code",
+    "dev":        "vite build --watch",
+    "dev:code":   "node build-code.mjs --watch",
+    "preview-ui": "vite --open"
+  },
+  "devDependencies": {
+    "@figma/plugin-typings": "^1.96.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "typescript": "^5.5.3",
+    "vite": "^5.4.2",
+    "vite-plugin-singlefile": "^2.0.1"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zustand": "^4.5.4"
+  }
+}

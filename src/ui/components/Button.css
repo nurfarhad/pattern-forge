@@ -1,0 +1,61 @@
+.pf-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 500;
+  transition: background 0.15s, opacity 0.15s, transform 0.1s;
+  white-space: nowrap;
+}
+
+.pf-btn:active:not(:disabled) { transform: scale(0.97); }
+
+.pf-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Sizes */
+.pf-btn--sm { font-size: 10px; padding: 4px 9px; height: 26px; }
+.pf-btn--md { font-size: 11px; padding: 6px 13px; height: 30px; }
+.pf-btn--full { width: 100%; }
+
+/* Variants */
+.pf-btn--primary {
+  background: var(--pf-accent);
+  color: #fff;
+}
+.pf-btn--primary:hover:not(:disabled) {
+  background: var(--pf-accent-hover);
+}
+
+.pf-btn--secondary {
+  background: var(--pf-surface-2);
+  color: var(--pf-text-primary);
+  border: 1px solid var(--pf-border);
+}
+.pf-btn--secondary:hover:not(:disabled) {
+  background: var(--pf-hover);
+}
+
+.pf-btn--ghost {
+  background: transparent;
+  color: var(--pf-text-secondary);
+}
+.pf-btn--ghost:hover:not(:disabled) {
+  background: var(--pf-hover);
+  color: var(--pf-text-primary);
+}
+
+.pf-btn--danger {
+  background: transparent;
+  color: #FC3018;
+  border: 1px solid rgba(252,48,24,0.3);
+}
+.pf-btn--danger:hover:not(:disabled) {
+  background: rgba(252,48,24,0.08);
+}
