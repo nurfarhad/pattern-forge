@@ -1,6 +1,6 @@
 # Pattern Forge — Architectural & Contract Decisions
 
-This document records the definitive decisions on the shared data contract (`src/generator/scene-spec.ts`) and renderer behavior across the plugin UI iframe, generator core, and Figma main thread.
+> **CRITICAL RULE FOR ALL AGENTS:** `GenerationParams.blendModes` is a plural `BlendMode[]` array — confirmed final as of 2026-08-23. PRD Section 9 is a draft type sketch, not the literal contract; this file is the source of truth. Do not revert to singular or strip required fields (`TextureSpec.opacity`, `LabelSpec.opacity`, `displayFont`).
 
 ---
 
