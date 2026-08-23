@@ -536,11 +536,11 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     }
     return fallback;
   }
-  function createBlockNode(block) {
+  function createBlockNode(block, parentX, parentY) {
     const rect = figma.createRectangle();
     rect.name = block.id;
-    rect.x = block.x;
-    rect.y = block.y;
+    rect.x = block.x + parentX;
+    rect.y = block.y + parentY;
     rect.resize(Math.max(1, block.width), Math.max(1, block.height));
     rect.opacity = safeOpacity(block.opacity, 1);
     rect.blendMode = block.blendMode || "NORMAL";
@@ -567,25 +567,25 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     }
     return rect;
   }
-  function createTextureNode(tex) {
+  function createTextureNode(tex, parentX, parentY) {
     const hex = PALETTE[tex.ink];
     const svgString = buildDotGridSvg(tex, hex);
     const node = figma.createNodeFromSvg(svgString);
     node.name = tex.id;
-    node.x = tex.region.x;
-    node.y = tex.region.y;
+    node.x = tex.region.x + parentX;
+    node.y = tex.region.y + parentY;
     node.opacity = safeOpacity(tex.opacity, 0.15);
     node.resize(Math.max(1, tex.region.width), Math.max(1, tex.region.height));
     return node;
   }
-  async function createLabelNode(label, fontName) {
+  async function createLabelNode(label, parentX, parentY, fontName) {
     const text = figma.createText();
     text.name = label.id;
     text.fontName = fontName;
     text.fontSize = Math.max(1, label.size);
     text.characters = label.text;
-    text.x = label.x;
-    text.y = label.y;
+    text.x = label.x + parentX;
+    text.y = label.y + parentY;
     text.opacity = safeOpacity(label.opacity, 0.85);
     text.fills = [{ type: "SOLID", color: { r: 0.12, g: 0.12, b: 0.12 } }];
     return text;
@@ -617,21 +617,21 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
       ];
       if (allBlocksToRender.length > 0) {
         const blockNodes = allBlocksToRender.map(
-          (block) => createBlockNode(block)
+          (block) => createBlockNode(block, parentX, parentY)
         );
         const blocksGroup = figma.group(blockNodes, frame);
         blocksGroup.name = "Blocks";
       }
       if (spec.textureRegions.length > 0) {
         const texNodes = spec.textureRegions.map(
-          (tex) => createTextureNode(tex)
+          (tex) => createTextureNode(tex, parentX, parentY)
         );
         const texGroup = figma.group(texNodes, frame);
         texGroup.name = "Texture";
       }
       if (spec.labels.length > 0) {
         const labelNodes = await Promise.all(
-          spec.labels.map((label) => createLabelNode(label, fontName))
+          spec.labels.map((label) => createLabelNode(label, parentX, parentY, fontName))
         );
         const labelsGroup = figma.group(labelNodes, frame);
         labelsGroup.name = "Labels";

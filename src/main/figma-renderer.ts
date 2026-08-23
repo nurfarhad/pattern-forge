@@ -51,11 +51,22 @@ function safeOpacity(v: unknown, fallback = 1): number {
 
 // ─── FR-6/FR-8: create a block RectangleNode ──────────────────────────────
 
-function createBlockNode(block: BlockSpec): RectangleNode {
+function createBlockNode(block: BlockSpec, parentX: number, parentY: number): RectangleNode {
   const rect = figma.createRectangle();
   rect.name = block.id;
-  rect.x = block.x;
-  rect.y = block.y;
+  // figma.group(nodes, frame) preserves each node's ABSOLUTE position (see
+  // https://developers.figma.com/docs — "keeping all the grouped layers in
+  // the same absolute x/y locations"). Since these rects are created directly
+  // on figma.currentPage (absolute space) and only later grouped INTO `frame`
+  // (which itself sits at absolute (parentX, parentY)), we must give each node
+  // its true absolute position up front — block.x/y alone is only the
+  // composition-LOCAL coordinate. Skipping the +parentX/+parentY here is what
+  // caused the "clustered in one corner" bug: content ended up positioned at
+  // absolute (block.x, block.y) regardless of where the target frame actually
+  // sits on the page, so only the sliver that coincidentally overlapped the
+  // frame's clip bounds survived.
+  rect.x = block.x + parentX;
+  rect.y = block.y + parentY;
   rect.resize(Math.max(1, block.width), Math.max(1, block.height));
   rect.opacity = safeOpacity(block.opacity, 1);
   rect.blendMode = block.blendMode || 'NORMAL';
@@ -90,14 +101,15 @@ function createBlockNode(block: BlockSpec): RectangleNode {
 
 // ─── FR-7: create a texture node via createNodeFromSvg ──────────────────
 
-function createTextureNode(tex: TextureSpec): SceneNode {
+function createTextureNode(tex: TextureSpec, parentX: number, parentY: number): SceneNode {
   const hex = PALETTE[tex.ink];
   const svgString = buildDotGridSvg(tex, hex);
 
   const node = figma.createNodeFromSvg(svgString);
   node.name = tex.id;
-  node.x = tex.region.x;
-  node.y = tex.region.y;
+  // See createBlockNode: must supply true absolute position before grouping into frame.
+  node.x = tex.region.x + parentX;
+  node.y = tex.region.y + parentY;
   node.opacity = safeOpacity(tex.opacity, 0.15);
 
   // Resize to exact region (SVG intrinsic size matches, but be safe)
@@ -110,6 +122,8 @@ function createTextureNode(tex: TextureSpec): SceneNode {
 
 async function createLabelNode(
   label: LabelSpec,
+  parentX: number,
+  parentY: number,
   fontName: FontName,
 ): Promise<TextNode> {
   const text = figma.createText();
@@ -117,8 +131,9 @@ async function createLabelNode(
   text.fontName = fontName;
   text.fontSize = Math.max(1, label.size);
   text.characters = label.text;
-  text.x = label.x;
-  text.y = label.y;
+  // See createBlockNode: must supply true absolute position before grouping into frame.
+  text.x = label.x + parentX;
+  text.y = label.y + parentY;
   text.opacity = safeOpacity(label.opacity, 0.85);
   text.fills = [{ type: 'SOLID', color: { r: 0.12, g: 0.12, b: 0.12 } }];
   return text;
@@ -187,7 +202,7 @@ export async function renderToFigma(
     ];
     if (allBlocksToRender.length > 0) {
       const blockNodes: RectangleNode[] = allBlocksToRender.map((block) =>
-        createBlockNode(block)
+        createBlockNode(block, parentX, parentY)
       );
       const blocksGroup = figma.group(blockNodes, frame);
       blocksGroup.name = 'Blocks';
@@ -196,7 +211,7 @@ export async function renderToFigma(
     // ── Texture group ────────────────────────────────────────────────────────
     if (spec.textureRegions.length > 0) {
       const texNodes: SceneNode[] = spec.textureRegions.map((tex) =>
-        createTextureNode(tex)
+        createTextureNode(tex, parentX, parentY)
       );
       const texGroup = figma.group(texNodes, frame);
       texGroup.name = 'Texture';
@@ -205,7 +220,7 @@ export async function renderToFigma(
     // ── Labels group ─────────────────────────────────────────────────────────
     if (spec.labels.length > 0) {
       const labelNodes = await Promise.all(
-        spec.labels.map((label) => createLabelNode(label, fontName))
+        spec.labels.map((label) => createLabelNode(label, parentX, parentY, fontName))
       );
       const labelsGroup = figma.group(labelNodes, frame);
       labelsGroup.name = 'Labels';
