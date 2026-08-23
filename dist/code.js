@@ -528,28 +528,32 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     if (typeof v === "number" && Number.isFinite(v)) {
       return Math.min(1, Math.max(0, v));
     }
+    const parsed = typeof v === "string" ? parseFloat(v) : NaN;
+    if (Number.isFinite(parsed)) {
+      return Math.min(1, Math.max(0, parsed));
+    }
     return fallback;
   }
-  function createBlockNode(block, parentX, parentY) {
+  function createBlockNode(block) {
     const rect = figma.createRectangle();
     rect.name = block.id;
-    rect.x = block.x - parentX;
-    rect.y = block.y - parentY;
-    rect.resize(Math.max(block.width, 1), Math.max(block.height, 1));
-    rect.opacity = safeOpacity(block.opacity);
+    rect.x = block.x;
+    rect.y = block.y;
+    rect.resize(Math.max(1, block.width), Math.max(1, block.height));
+    rect.opacity = safeOpacity(block.opacity, 1);
     rect.blendMode = block.blendMode || "NORMAL";
     if (block.gradient != null) {
       const { gradient } = block;
       const stops = gradient.stops.map((s) => ({
-        position: s.position,
-        color: __spreadProps(__spreadValues({}, resolveToken(s.color)), { a: safeOpacity(s.opacity) })
+        position: Math.min(1, Math.max(0, s.position)),
+        color: __spreadProps(__spreadValues({}, resolveToken(s.color)), { a: safeOpacity(s.opacity, 1) })
       }));
       rect.fills = [{
         type: "GRADIENT_LINEAR",
         gradientTransform: angleToGradientTransform(
           gradient.angleDeg,
-          block.x - parentX,
-          block.y - parentY,
+          block.x,
+          block.y,
           block.width,
           block.height
         ),
@@ -561,26 +565,26 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     }
     return rect;
   }
-  function createTextureNode(tex, parentX, parentY) {
+  function createTextureNode(tex) {
     const hex = PALETTE[tex.ink];
     const svgString = buildDotGridSvg(tex, hex);
     const node = figma.createNodeFromSvg(svgString);
     node.name = tex.id;
-    node.x = tex.region.x - parentX;
-    node.y = tex.region.y - parentY;
-    node.opacity = safeOpacity(tex.opacity);
+    node.x = tex.region.x;
+    node.y = tex.region.y;
+    node.opacity = safeOpacity(tex.opacity, 0.15);
     node.resize(Math.max(1, tex.region.width), Math.max(1, tex.region.height));
     return node;
   }
-  async function createLabelNode(label, parentX, parentY, fontName) {
+  async function createLabelNode(label, fontName) {
     const text = figma.createText();
     text.name = label.id;
     text.fontName = fontName;
     text.fontSize = Math.max(1, label.size);
     text.characters = label.text;
-    text.x = label.x - parentX;
-    text.y = label.y - parentY;
-    text.opacity = safeOpacity(label.opacity);
+    text.x = label.x;
+    text.y = label.y;
+    text.opacity = safeOpacity(label.opacity, 0.85);
     text.fills = [{ type: "SOLID", color: { r: 0.12, g: 0.12, b: 0.12 } }];
     return text;
   }
@@ -603,50 +607,53 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     frame.resize(Math.max(1, spec.canvas.width), Math.max(1, spec.canvas.height));
     frame.fills = [{ type: "SOLID", color: { r: 1, g: 1, b: 1 } }];
     frame.clipsContent = true;
-    const allBlocksToRender = [
-      ...spec.blocks,
-      ...spec.gradientBlock ? [spec.gradientBlock] : []
-    ];
-    if (allBlocksToRender.length > 0) {
-      const blockNodes = allBlocksToRender.map(
-        (block) => createBlockNode(block, parentX, parentY)
-      );
-      const blocksGroup = figma.group(blockNodes, figma.currentPage);
-      blocksGroup.name = "Blocks";
-      frame.appendChild(blocksGroup);
-    }
-    if (spec.textureRegions.length > 0) {
-      const texNodes = spec.textureRegions.map(
-        (tex) => createTextureNode(tex, parentX, parentY)
-      );
-      const texGroup = figma.group(texNodes, figma.currentPage);
-      texGroup.name = "Texture";
-      frame.appendChild(texGroup);
-    }
-    if (spec.labels.length > 0) {
-      const labelNodes = await Promise.all(
-        spec.labels.map((label) => createLabelNode(label, parentX, parentY, fontName))
-      );
-      const labelsGroup = figma.group(labelNodes, figma.currentPage);
-      labelsGroup.name = "Labels";
-      frame.appendChild(labelsGroup);
-    }
-    if (mode === "fill" && targetNode) {
+    figma.currentPage.appendChild(frame);
+    try {
+      const allBlocksToRender = [
+        ...spec.blocks,
+        ...spec.gradientBlock ? [spec.gradientBlock] : []
+      ];
+      if (allBlocksToRender.length > 0) {
+        const blockNodes = allBlocksToRender.map(
+          (block) => createBlockNode(block)
+        );
+        const blocksGroup = figma.group(blockNodes, frame);
+        blocksGroup.name = "Blocks";
+      }
+      if (spec.textureRegions.length > 0) {
+        const texNodes = spec.textureRegions.map(
+          (tex) => createTextureNode(tex)
+        );
+        const texGroup = figma.group(texNodes, frame);
+        texGroup.name = "Texture";
+      }
+      if (spec.labels.length > 0) {
+        const labelNodes = await Promise.all(
+          spec.labels.map((label) => createLabelNode(label, fontName))
+        );
+        const labelsGroup = figma.group(labelNodes, frame);
+        labelsGroup.name = "Labels";
+      }
+      if (mode === "fill" && targetNode) {
+        try {
+          const cloned = targetNode.clone();
+          cloned.x = 0;
+          cloned.y = 0;
+          cloned.isMask = true;
+          cloned.name = "_mask";
+          frame.insertChild(0, cloned);
+        } catch (e) {
+        }
+      }
+      saveRecipe(frame, params, spec.seed, mode);
+      return frame;
+    } catch (err) {
       try {
-        const cloned = targetNode.clone();
-        cloned.x = 0;
-        cloned.y = 0;
-        cloned.isMask = true;
-        cloned.name = "_mask";
-        frame.insertChild(0, cloned);
+        frame.remove();
       } catch (e) {
       }
+      throw err;
     }
-    saveRecipe(frame, params, spec.seed, mode);
-    figma.currentPage.appendChild(frame);
-    figma.currentPage.selection = [frame];
-    figma.viewport.scrollAndZoomIntoView([frame]);
-    return frame;
   }
   async function renderBatchToFigma(specs, params, constraints) {
     const frames = [];
@@ -666,6 +673,10 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
         targetNode
       });
       frames.push(frame);
+    }
+    if (frames.length > 0) {
+      figma.currentPage.selection = frames;
+      figma.viewport.scrollAndZoomIntoView(frames);
     }
     figma.notify(`Pattern Forge: inserted ${frames.length} patterns ✓`, { timeout: 2500 });
     return frames;

@@ -42,34 +42,38 @@ function safeOpacity(v: unknown, fallback = 1): number {
   if (typeof v === 'number' && Number.isFinite(v)) {
     return Math.min(1, Math.max(0, v));
   }
+  const parsed = typeof v === 'string' ? parseFloat(v) : NaN;
+  if (Number.isFinite(parsed)) {
+    return Math.min(1, Math.max(0, parsed));
+  }
   return fallback;
 }
 
 // ─── FR-6/FR-8: create a block RectangleNode ──────────────────────────────
 
-function createBlockNode(block: BlockSpec, parentX: number, parentY: number): RectangleNode {
+function createBlockNode(block: BlockSpec): RectangleNode {
   const rect = figma.createRectangle();
   rect.name = block.id;
-  rect.x = block.x - parentX;
-  rect.y = block.y - parentY;
-  rect.resize(Math.max(block.width, 1), Math.max(block.height, 1));
-  rect.opacity = safeOpacity(block.opacity);
+  rect.x = block.x;
+  rect.y = block.y;
+  rect.resize(Math.max(1, block.width), Math.max(1, block.height));
+  rect.opacity = safeOpacity(block.opacity, 1);
   rect.blendMode = block.blendMode || 'NORMAL';
 
   if (block.gradient != null) {
     // FR-9: GRADIENT_LINEAR paint — editable via Figma's gradient handle UI
     const { gradient } = block;
     const stops: ColorStop[] = gradient.stops.map((s) => ({
-      position: s.position,
-      color: { ...resolveToken(s.color), a: safeOpacity(s.opacity) },
+      position: Math.min(1, Math.max(0, s.position)),
+      color: { ...resolveToken(s.color), a: safeOpacity(s.opacity, 1) },
     }));
 
     rect.fills = [{
       type: 'GRADIENT_LINEAR',
       gradientTransform: angleToGradientTransform(
         gradient.angleDeg,
-        block.x - parentX,
-        block.y - parentY,
+        block.x,
+        block.y,
         block.width,
         block.height,
       ),
@@ -86,15 +90,15 @@ function createBlockNode(block: BlockSpec, parentX: number, parentY: number): Re
 
 // ─── FR-7: create a texture node via createNodeFromSvg ──────────────────
 
-function createTextureNode(tex: TextureSpec, parentX: number, parentY: number): SceneNode {
+function createTextureNode(tex: TextureSpec): SceneNode {
   const hex = PALETTE[tex.ink];
   const svgString = buildDotGridSvg(tex, hex);
 
   const node = figma.createNodeFromSvg(svgString);
   node.name = tex.id;
-  node.x = tex.region.x - parentX;
-  node.y = tex.region.y - parentY;
-  node.opacity = safeOpacity(tex.opacity);
+  node.x = tex.region.x;
+  node.y = tex.region.y;
+  node.opacity = safeOpacity(tex.opacity, 0.15);
 
   // Resize to exact region (SVG intrinsic size matches, but be safe)
   node.resize(Math.max(1, tex.region.width), Math.max(1, tex.region.height));
@@ -106,8 +110,6 @@ function createTextureNode(tex: TextureSpec, parentX: number, parentY: number): 
 
 async function createLabelNode(
   label: LabelSpec,
-  parentX: number,
-  parentY: number,
   fontName: FontName,
 ): Promise<TextNode> {
   const text = figma.createText();
@@ -115,9 +117,9 @@ async function createLabelNode(
   text.fontName = fontName;
   text.fontSize = Math.max(1, label.size);
   text.characters = label.text;
-  text.x = label.x - parentX;
-  text.y = label.y - parentY;
-  text.opacity = safeOpacity(label.opacity);
+  text.x = label.x;
+  text.y = label.y;
+  text.opacity = safeOpacity(label.opacity, 0.85);
   text.fills = [{ type: 'SOLID', color: { r: 0.12, g: 0.12, b: 0.12 } }];
   return text;
 }
@@ -156,7 +158,10 @@ export async function renderToFigma(
 
   if (targetNode && (mode === 'fill' || mode === 'mask')) {
     const bb = targetNode.absoluteBoundingBox;
-    if (bb) { parentX = bb.x; parentY = bb.y; }
+    if (bb) {
+      parentX = bb.x;
+      parentY = bb.y;
+    }
   }
 
   // ── Create wrapper frame ────────────────────────────────────────────────
@@ -169,65 +174,66 @@ export async function renderToFigma(
   frame.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
   frame.clipsContent = true;
 
-  // ── Blocks group ────────────────────────────────────────────────────────
-  const allBlocksToRender = [
-    ...spec.blocks,
-    ...(spec.gradientBlock ? [spec.gradientBlock] : []),
-  ];
-  if (allBlocksToRender.length > 0) {
-    const blockNodes: RectangleNode[] = allBlocksToRender.map((block) =>
-      createBlockNode(block, parentX, parentY)
-    );
-    const blocksGroup = figma.group(blockNodes, figma.currentPage);
-    blocksGroup.name = 'Blocks';
-    frame.appendChild(blocksGroup);
-  }
-
-  // ── Texture group ────────────────────────────────────────────────────────
-  if (spec.textureRegions.length > 0) {
-    const texNodes: SceneNode[] = spec.textureRegions.map((tex) =>
-      createTextureNode(tex, parentX, parentY)
-    );
-    const texGroup = figma.group(texNodes, figma.currentPage);
-    texGroup.name = 'Texture';
-    frame.appendChild(texGroup);
-  }
-
-  // ── Labels group ─────────────────────────────────────────────────────────
-  if (spec.labels.length > 0) {
-    const labelNodes = await Promise.all(
-      spec.labels.map((label) => createLabelNode(label, parentX, parentY, fontName))
-    );
-    const labelsGroup = figma.group(labelNodes, figma.currentPage);
-    labelsGroup.name = 'Labels';
-    frame.appendChild(labelsGroup);
-  }
-
-  // ── Selection-Fill: apply isMask for non-rectangular shapes ─────────────
-  // FR-3: true outline masking — not just bounding-box clipping
-  if (mode === 'fill' && targetNode) {
-    try {
-      const cloned = targetNode.clone();
-      cloned.x = 0;
-      cloned.y = 0;
-      cloned.isMask = true;
-      cloned.name = '_mask';
-      // Insert mask at bottom of frame stack (Figma: mask clips nodes ABOVE it)
-      frame.insertChild(0, cloned);
-    } catch {
-      // If cloning fails (e.g., component licensing), fall back to bounding-box clip
-    }
-  }
-
-  // ── Stamp recipe for later reload (FR-13) ─────────────────────────────────
-  saveRecipe(frame, params, spec.seed, mode);
-
-  // ── Place frame on canvas ─────────────────────────────────────────────────
+  // Place frame on canvas immediately so it has a valid parent context
   figma.currentPage.appendChild(frame);
-  figma.currentPage.selection = [frame];
-  figma.viewport.scrollAndZoomIntoView([frame]);
 
-  return frame;
+  try {
+    // ── Blocks group ────────────────────────────────────────────────────────
+    const allBlocksToRender = [
+      ...spec.blocks,
+      ...(spec.gradientBlock ? [spec.gradientBlock] : []),
+    ];
+    if (allBlocksToRender.length > 0) {
+      const blockNodes: RectangleNode[] = allBlocksToRender.map((block) =>
+        createBlockNode(block)
+      );
+      const blocksGroup = figma.group(blockNodes, frame);
+      blocksGroup.name = 'Blocks';
+    }
+
+    // ── Texture group ────────────────────────────────────────────────────────
+    if (spec.textureRegions.length > 0) {
+      const texNodes: SceneNode[] = spec.textureRegions.map((tex) =>
+        createTextureNode(tex)
+      );
+      const texGroup = figma.group(texNodes, frame);
+      texGroup.name = 'Texture';
+    }
+
+    // ── Labels group ─────────────────────────────────────────────────────────
+    if (spec.labels.length > 0) {
+      const labelNodes = await Promise.all(
+        spec.labels.map((label) => createLabelNode(label, fontName))
+      );
+      const labelsGroup = figma.group(labelNodes, frame);
+      labelsGroup.name = 'Labels';
+    }
+
+    // ── Selection-Fill: apply isMask for non-rectangular shapes ─────────────
+    // FR-3: true outline masking — not just bounding-box clipping
+    if (mode === 'fill' && targetNode) {
+      try {
+        const cloned = targetNode.clone();
+        cloned.x = 0;
+        cloned.y = 0;
+        cloned.isMask = true;
+        cloned.name = '_mask';
+        // Insert mask at bottom of frame stack (Figma: mask clips nodes ABOVE it)
+        frame.insertChild(0, cloned);
+      } catch {
+        // If cloning fails (e.g., component licensing), fall back to bounding-box clip
+      }
+    }
+
+    // ── Stamp recipe for later reload (FR-13) ─────────────────────────────────
+    saveRecipe(frame, params, spec.seed, mode);
+
+    return frame;
+  } catch (err) {
+    // If anything fails during assembly, remove incomplete frame to avoid leaving broken artifacts
+    try { frame.remove(); } catch { /* ignore */ }
+    throw err;
+  }
 }
 
 /**
@@ -260,6 +266,11 @@ export async function renderBatchToFigma(
       targetNode,
     });
     frames.push(frame);
+  }
+
+  if (frames.length > 0) {
+    figma.currentPage.selection = frames;
+    figma.viewport.scrollAndZoomIntoView(frames);
   }
 
   figma.notify(`Pattern Forge: inserted ${frames.length} patterns ✓`, { timeout: 2500 });
