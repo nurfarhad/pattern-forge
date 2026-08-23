@@ -87,6 +87,9 @@ export function generateLayout(
     ? params.activeTokens
     : ['alertRed'];
   const tokens = rngShuffle(rng, tokenSource);
+  const blendModeSource: BlockSpec['blendMode'][] = params.blendModes.length > 0
+    ? params.blendModes
+    : ['NORMAL'];
   const totalBlocks = blockCount(params.density, width, height);
   const clusterCount = Math.round(totalBlocks * 0.64);
   const scatterCount = totalBlocks - clusterCount;
@@ -123,7 +126,7 @@ export function generateLayout(
       height: Math.max(blockHeight, height * 0.04),
       fill: tokens[index % tokens.length],
       opacity: rngFloat(rng, minOpacity, maxOpacity),
-      blendMode: params.blendMode,
+      blendMode: rngPick(rng, blendModeSource),
     });
   }
 

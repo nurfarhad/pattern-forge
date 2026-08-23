@@ -261,16 +261,26 @@ export const App: React.FC = () => {
               Blend Mode
             </div>
             <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-              {(['NORMAL', 'MULTIPLY', 'SCREEN', 'DARKEN'] as BlendMode[]).map((bm) => (
-                <button
-                  key={bm}
-                  id={`pf-blend-${bm.toLowerCase()}`}
-                  className={`pf-size-chip ${params.blendMode === bm ? 'pf-size-chip--active' : ''}`}
-                  onClick={() => setParam('blendMode', bm)}
-                >
-                  {bm}
-                </button>
-              ))}
+              {(['NORMAL', 'MULTIPLY', 'SCREEN', 'DARKEN'] as BlendMode[]).map((bm) => {
+                const isActive = params.blendModes.includes(bm);
+                return (
+                  <button
+                    key={bm}
+                    id={`pf-blend-${bm.toLowerCase()}`}
+                    className={`pf-size-chip ${isActive ? 'pf-size-chip--active' : ''}`}
+                    aria-pressed={isActive}
+                    onClick={() => {
+                      if (isActive && params.blendModes.length <= 1) return; // always keep at least 1
+                      const next = isActive
+                        ? params.blendModes.filter((m) => m !== bm)
+                        : [...params.blendModes, bm];
+                      setParam('blendModes', next);
+                    }}
+                  >
+                    {bm}
+                  </button>
+                );
+              })}
             </div>
           </div>
 

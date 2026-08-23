@@ -73,7 +73,7 @@ export type GenerationParams = {
   density: number;
   scaleRange: [number, number];
   gridStrictness: number;
-  blendMode: BlockSpec['blendMode'];
+  blendModes: BlockSpec['blendMode'][];
   opacityRange: [number, number];
   textureEnabled: boolean;
   textureDensity: number;
@@ -160,7 +160,7 @@ export const DEFAULT_PARAMS: GenerationParams = {
   density: 6,
   scaleRange: [0.05, 0.45],
   gridStrictness: 0.4,
-  blendMode: 'MULTIPLY',
+  blendModes: ['MULTIPLY'],
   opacityRange: [0.55, 1],
   textureEnabled: true,
   textureDensity: 1,

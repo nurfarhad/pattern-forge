@@ -369,9 +369,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
           },
           dotSize: DEFAULT_DOT_SIZE,
           spacing: textureSpacingForRegion(params.textureDensity, patchWidth, patchHeight),
-          ink: "ink",
-          opacity: rngFloat(rng, 0.08, 0.22)
-          // ← was missing; undefined here = crash in Figma renderer
+          ink: "ink"
         });
       }
     }

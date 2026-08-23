@@ -7971,9 +7971,7 @@ function generateLayout(params, constraints, rng) {
         },
         dotSize: DEFAULT_DOT_SIZE,
         spacing: textureSpacingForRegion(params.textureDensity, patchWidth, patchHeight),
-        ink: "ink",
-        opacity: rngFloat(rng, 0.08, 0.22)
-        // ← was missing; undefined here = crash in Figma renderer
+        ink: "ink"
       });
     }
   }
@@ -8758,6 +8756,11 @@ client.createRoot(document.getElementById("root")).render(
 /* ─── Reset ─────────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
 
+html, body, #root {
+  width: 100%;
+  min-width: 0;
+}
+
 body {
   margin: 0;
   padding: 0;
@@ -8774,6 +8777,9 @@ body {
 .pf-app {
   display: flex;
   flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  max-width: 100vw;
   height: 100vh;
   overflow: hidden;
 }
@@ -8849,6 +8855,7 @@ body {
 /* ─── Scrollable body ───────────────────────────────────────────────────── */
 .pf-body {
   flex: 1;
+  min-width: 0;
   overflow-y: auto;
   overflow-x: hidden;
 }
@@ -9062,6 +9069,12 @@ body {
   display: flex;
   gap: 6px;
   flex-shrink: 0;
+  min-width: 0;
+}
+
+.pf-footer .pf-btn--primary {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 /* ─── Warning banner ────────────────────────────────────────────────────── */
@@ -9082,7 +9095,7 @@ body {
   align-items: center;
 }
 
-.pf-range-row > * { flex: 1; }
+.pf-range-row > * { flex: 1; min-width: 0; }
 
 /* ─── Mode toggle buttons ───────────────────────────────────────────────── */
 .pf-mode-tabs {
