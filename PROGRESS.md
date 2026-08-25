@@ -11,8 +11,7 @@
   2. *Selection & Recipe Arming*: `selection-reader.ts` detects single frame selections with stored recipe metadata (`hasRecipe(node)`), providing `canLiveUpdate: true` and `liveTargetId` to the UI.
   3. *Debounced Live Push*: In `src/ui/App.tsx`, slider and control updates trigger a 90ms debounced `LIVE_UPDATE` message via `src/ui/bridge.ts` to the main thread.
   4. *Live Status Indicator*: The header badge dynamically reflects `● LIVE` with emerald styling.
-- **UI Simplification & Streamlining (2026-08-25):**
-  1. *Seed Input Removed*: Removed the Seed panel and manual seed input field while keeping the "↺ Regenerate" button at the bottom footer to shuffle layouts.
-  2. *Recent Generations Removed*: Removed the session thumbnail history panel to minimize clutter.
-  3. *Fixed Opacity Range*: Removed Opacity Range sliders and locked the range to `[0.10, 1.00]` (10% to 100%).
-  4. *Fixed Texture Density & Effects*: Removed Texture Density slider and locked value to `2.5x` (`2.5`), with Halftone Texture and Gradient Block toggles defaulting to enabled.
+- **Minimal UI & 11-Block Editable Color Palette (2026-08-25):**
+  1. *Fully Minimal UI*: Removed all non-essential panels (Composition, Blend & Texture, Labels, Output Size, Presets, Seed, History).
+  2. *Fixed Optimal Defaults*: Fixed Blend Modes to all 4 modes (`NORMAL`, `MULTIPLY`, `SCREEN`, `DARKEN`), Halftone Texture (`true`), Texture Density (`2.5`), Gradient Block (`true`), Data Labels (`true`), Density (`6`), and Grid Strictness (`0.4`).
+  3. *11-Block User-Editable Color Palette*: Swatch grid displays exactly 11 color blocks. Clicking any swatch opens the color picker, allowing the user to customize each palette color in real time. Changes propagate immediately across local preview, live canvas updates, and batch rendering.
