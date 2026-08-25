@@ -162,16 +162,16 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     // secondary
     hotPink: "#FC4890",
     // secondary
-    blush: "#F0D8E4",
-    // pale pastel accent
+    blush: "#524E56",
+    // dark slate gray
     forestGreen: "#3C9054",
     // dark end of signature gradient block
-    sageMint: "#A8C0A8",
-    // light end of gradient block
+    sageMint: "#405040",
+    // dark moss
     sand: "#FCE4C0",
     // cream/tan bars
-    amber: "#F0B400",
-    // rare gold accent
+    amber: "#6B5C20",
+    // olive amber
     slateBlueGray: "#6C9CCC",
     // cool block, pairs with orange
     ink: "#1E1E1E",
@@ -189,8 +189,14 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
       b: parseInt(h.slice(4, 6), 16) / 255
     };
   }
-  function resolveToken(token) {
-    return hexToRgb(PALETTE[token]);
+  function getTokenHex(token, customColors) {
+    if (customColors && customColors[token]) {
+      return customColors[token];
+    }
+    return PALETTE[token] || "#000000";
+  }
+  function resolveToken(token, customColors) {
+    return hexToRgb(getTokenHex(token, customColors));
   }
   const DEFAULT_DOT_SIZE = 1.5;
   const MAX_TEXTURE_DOTS_PER_REGION = 2400;
@@ -403,7 +409,8 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
       canvas,
       blocks,
       textureRegions,
-      labels
+      labels,
+      customColors: params.customColors
     }, gradientBlock ? { gradientBlock } : {});
     const estimatedNodeCount = estimateNodeCount(params);
     return {
@@ -417,6 +424,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
       const derivedParams = __spreadProps(__spreadValues({}, params), {
         seed: `${params.seed}-${index}`,
         activeTokens: [...params.activeTokens],
+        customColors: params.customColors ? __spreadValues({}, params.customColors) : void 0,
         scaleRange: [...params.scaleRange],
         opacityRange: [...params.opacityRange],
         blendModes: [...params.blendModes],
@@ -549,7 +557,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     }
     return fallback;
   }
-  function createBlockNode(block, parentX, parentY) {
+  function createBlockNode(block, parentX, parentY, customColors) {
     const rect = figma.createRectangle();
     rect.name = block.id;
     rect.x = block.x + parentX;
@@ -561,7 +569,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
       const { gradient } = block;
       const stops = gradient.stops.map((s) => ({
         position: Math.min(1, Math.max(0, s.position)),
-        color: __spreadProps(__spreadValues({}, resolveToken(s.color)), { a: safeOpacity(s.opacity, 1) })
+        color: __spreadProps(__spreadValues({}, resolveToken(s.color, customColors)), { a: safeOpacity(s.opacity, 1) })
       }));
       rect.fills = [{
         type: "GRADIENT_LINEAR",
@@ -575,13 +583,13 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
         gradientStops: stops
       }];
     } else {
-      const color = resolveToken(block.fill);
+      const color = resolveToken(block.fill, customColors);
       rect.fills = [{ type: "SOLID", color }];
     }
     return rect;
   }
-  function createTextureNode(tex, parentX, parentY) {
-    const hex = PALETTE[tex.ink];
+  function createTextureNode(tex, parentX, parentY, customColors) {
+    const hex = PALETTE[tex.ink] || "#1E1E1E";
     const svgString = buildDotGridSvg(tex, hex);
     const node = figma.createNodeFromSvg(svgString);
     node.name = tex.id;
@@ -637,14 +645,14 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
       ];
       if (allBlocksToRender.length > 0) {
         const blockNodes = allBlocksToRender.map(
-          (block) => createBlockNode(block, parentX, parentY)
+          (block) => createBlockNode(block, parentX, parentY, params.customColors)
         );
         const blocksGroup = figma.group(blockNodes, frame);
         blocksGroup.name = "Blocks";
       }
       if (spec.textureRegions.length > 0) {
         const texNodes = spec.textureRegions.map(
-          (tex) => createTextureNode(tex, parentX, parentY)
+          (tex) => createTextureNode(tex, parentX, parentY, params.customColors)
         );
         const texGroup = figma.group(texNodes, frame);
         texGroup.name = "Texture";
@@ -724,14 +732,14 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
       ];
       if (allBlocksToRender.length > 0) {
         const blockNodes = allBlocksToRender.map(
-          (block) => createBlockNode(block, parentX, parentY)
+          (block) => createBlockNode(block, parentX, parentY, params.customColors)
         );
         const blocksGroup = figma.group(blockNodes, tempFrame);
         blocksGroup.name = "Blocks";
       }
       if (spec.textureRegions.length > 0) {
         const texNodes = spec.textureRegions.map(
-          (tex) => createTextureNode(tex, parentX, parentY)
+          (tex) => createTextureNode(tex, parentX, parentY, params.customColors)
         );
         const texGroup = figma.group(texNodes, tempFrame);
         texGroup.name = "Texture";

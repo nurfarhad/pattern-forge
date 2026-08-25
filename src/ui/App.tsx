@@ -1,42 +1,26 @@
-// ─── Pattern Forge — Main UI App ─────────────────────────────────────────────
-// Streamlined plugin control panel with live canvas editing and instant preview.
+// ─── Pattern Forge — Minimal UI App ──────────────────────────────────────────
+// Clean, streamlined plugin interface with 11 customizable color blocks and live canvas updates.
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import './App.css';
 
-import { Slider } from './components/Slider';
 import { Panel } from './components/Panel';
 import { Button } from './components/Button';
 import { SwatchGrid } from './components/SwatchGrid';
-import { PresetChip } from './components/PresetChip';
 import { CanvasPreviewRenderer } from './preview/CanvasPreviewRenderer';
 
-import {
-  useParamsStore,
-  BUILT_IN_PRESETS,
-} from './state/params';
-import type { BlendMode, PaletteToken, SourceMode } from '@generator/scene-spec';
-import { OUTPUT_PRESETS, type OutputPresetKey } from '@generator/scene-spec';
+import { useParamsStore } from './state/params';
+import type { PaletteToken, SourceMode } from '@generator/scene-spec';
 import { estimateNodeCount } from '@generator/layout';
 import { sendInsert, sendLiveUpdate, sendRequestSelectionInfo, onPluginMessage } from './bridge';
-
-// ─── App ─────────────────────────────────────────────────────────────────────
-
-const OUTPUT_PRESET_KEYS = Object.keys(OUTPUT_PRESETS) as OutputPresetKey[];
 
 export const App: React.FC = () => {
   const store = useParamsStore();
   const {
-    params, mode, currentSpec, userPresets,
-    setParam, setMode, regenerate,
-    applyPreset, addUserPreset, removeUserPreset,
+    params, mode, currentSpec,
+    setParam, setParams, setMode, regenerate,
     loadRecipe, setInserting, isInserting, constraints,
   } = store;
-
-  const [activePresetId, setActivePresetId] = useState<string | null>('dense-cluster');
-  const [savePresetName, setSavePresetName] = useState('');
-  const [showSavePreset, setShowSavePreset] = useState(false);
-  const [activeOutputPreset, setActiveOutputPreset] = useState<OutputPresetKey | 'custom' | 'selection'>('square');
 
   const liveTimerRef = React.useRef<number | null>(null);
   const isSyncingRecipeRef = React.useRef(false);
@@ -91,10 +75,13 @@ export const App: React.FC = () => {
   const nodeCount = estimateNodeCount(params);
   const nodeCountWarning = nodeCount > 400;
 
-  // ── Output size preset ────────────────────────────────────────────────────
-  const applyOutputPreset = (key: OutputPresetKey) => {
-    setActiveOutputPreset(key);
-    setParam('outputSize', { width: OUTPUT_PRESETS[key].width, height: OUTPUT_PRESETS[key].height });
+  // ── Color customization handler ──────────────────────────────────────────
+  const handleColorChange = (token: PaletteToken, newHex: string) => {
+    const updatedCustom = {
+      ...(params.customColors || {}),
+      [token]: newHex,
+    };
+    setParam('customColors', updatedCustom);
   };
 
   // ── Insert to canvas ──────────────────────────────────────────────────────
@@ -113,19 +100,6 @@ export const App: React.FC = () => {
   // ── Regenerate (new seed, keep locked params) ─────────────────────────────
   const handleRegenerate = () => {
     regenerate();
-  };
-
-  // ── Save preset ──────────────────────────────────────────────────────────
-  const handleSavePreset = () => {
-    if (!savePresetName.trim()) return;
-    addUserPreset({
-      id: `user-${Date.now()}`,
-      name: savePresetName.trim(),
-      params,
-      isBuiltIn: false,
-    });
-    setSavePresetName('');
-    setShowSavePreset(false);
   };
 
   // ── Mode badge & Live status indicator ───────────────────────────────────
@@ -189,279 +163,14 @@ export const App: React.FC = () => {
           </div>
         </div>
 
-        {/* 2. Palette */}
+        {/* 2. Palette with 11 customizable blocks */}
         <Panel title="Palette" id="pf-panel-palette">
           <SwatchGrid
             activeTokens={params.activeTokens}
-            onChange={(tokens) => setParam('activeTokens', tokens as PaletteToken[])}
+            customColors={params.customColors}
+            onColorChange={handleColorChange}
           />
-          <p className="pf-help">Click swatches to toggle colors in/out of rotation.</p>
-        </Panel>
-
-        {/* 3. Composition */}
-        <Panel title="Composition" id="pf-panel-composition">
-          <Slider
-            id="pf-slider-density"
-            label="Density"
-            value={params.density}
-            min={1} max={10} step={0.5} decimals={1}
-            onChange={(v) => setParam('density', v)}
-          />
-          <Slider
-            id="pf-slider-grid"
-            label="Grid Strictness"
-            value={params.gridStrictness}
-            min={0} max={1} step={0.05} decimals={2}
-            onChange={(v) => setParam('gridStrictness', v)}
-          />
-          <div>
-            <div style={{ fontSize: 10, color: 'var(--pf-text-secondary)', marginBottom: 6, fontWeight: 500, letterSpacing: '0.03em' }}>
-              Block Scale Range
-            </div>
-            <div className="pf-range-row">
-              <Slider
-                id="pf-slider-scale-min"
-                label="Min"
-                value={params.scaleRange[0]}
-                min={0.02} max={params.scaleRange[1] - 0.02} step={0.01} decimals={2}
-                onChange={(v) => setParam('scaleRange', [v, params.scaleRange[1]])}
-              />
-              <Slider
-                id="pf-slider-scale-max"
-                label="Max"
-                value={params.scaleRange[1]}
-                min={params.scaleRange[0] + 0.02} max={0.7} step={0.01} decimals={2}
-                onChange={(v) => setParam('scaleRange', [params.scaleRange[0], v])}
-              />
-            </div>
-          </div>
-        </Panel>
-
-        {/* 4. Blend & Texture */}
-        <Panel title="Blend & Texture" id="pf-panel-blend">
-          <div>
-            <div style={{ fontSize: 10, color: 'var(--pf-text-secondary)', marginBottom: 4, fontWeight: 500 }}>
-              Blend Mode
-            </div>
-            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-              {(['NORMAL', 'MULTIPLY', 'SCREEN', 'DARKEN'] as BlendMode[]).map((bm) => {
-                const isActive = params.blendModes.includes(bm);
-                return (
-                  <button
-                    key={bm}
-                    id={`pf-blend-${bm.toLowerCase()}`}
-                    className={`pf-size-chip ${isActive ? 'pf-size-chip--active' : ''}`}
-                    aria-pressed={isActive}
-                    onClick={() => {
-                      if (isActive && params.blendModes.length <= 1) return; // always keep at least 1
-                      const next = isActive
-                        ? params.blendModes.filter((m) => m !== bm)
-                        : [...params.blendModes, bm];
-                      setParam('blendModes', next);
-                    }}
-                  >
-                    {bm}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="pf-toggle-row">
-            <span className="pf-toggle-row__label">Halftone Texture</span>
-            <label className="pf-toggle">
-              <input
-                type="checkbox"
-                checked={params.textureEnabled}
-                onChange={(e) => setParam('textureEnabled', e.target.checked)}
-                id="pf-toggle-texture"
-              />
-              <span className="pf-toggle__slider" />
-            </label>
-          </div>
-
-          <div className="pf-toggle-row">
-            <span className="pf-toggle-row__label">Gradient Block</span>
-            <label className="pf-toggle">
-              <input
-                type="checkbox"
-                checked={params.gradientEnabled}
-                onChange={(e) => setParam('gradientEnabled', e.target.checked)}
-                id="pf-toggle-gradient"
-              />
-              <span className="pf-toggle__slider" />
-            </label>
-          </div>
-        </Panel>
-
-        {/* 5. Labels */}
-        <Panel title="Labels" id="pf-panel-labels">
-          <div className="pf-toggle-row">
-            <span className="pf-toggle-row__label">Data-readout Labels</span>
-            <label className="pf-toggle">
-              <input
-                type="checkbox"
-                checked={params.labelsEnabled}
-                onChange={(e) => setParam('labelsEnabled', e.target.checked)}
-                id="pf-toggle-labels"
-              />
-              <span className="pf-toggle__slider" />
-            </label>
-          </div>
-
-          {params.labelsEnabled && (
-            <>
-              <div className="pf-mode-tabs">
-                <button
-                  className={`pf-mode-tab ${params.labelSource === 'generated' ? 'pf-mode-tab--active' : ''}`}
-                  onClick={() => setParam('labelSource', 'generated')}
-                  id="pf-label-source-generated"
-                >
-                  Generated
-                </button>
-                <button
-                  className={`pf-mode-tab ${params.labelSource === 'custom' ? 'pf-mode-tab--active' : ''}`}
-                  onClick={() => setParam('labelSource', 'custom')}
-                  id="pf-label-source-custom"
-                >
-                  Custom
-                </button>
-              </div>
-
-              {params.labelSource === 'custom' && (
-                <>
-                  <textarea
-                    className="pf-textarea"
-                    id="pf-label-custom-input"
-                    placeholder="One label per line&#10;e.g. BRAND 2045&#10;XC% R6.O2"
-                    value={params.customLabels?.join('\n') ?? ''}
-                    onChange={(e) =>
-                      setParam('customLabels', e.target.value.split('\n').filter(Boolean))
-                    }
-                  />
-                  <p className="pf-help">One entry per line. Leave empty to fall back to generated codes.</p>
-                </>
-              )}
-
-              <div>
-                <div style={{ fontSize: 10, color: 'var(--pf-text-secondary)', marginBottom: 4, fontWeight: 500 }}>
-                  Font (display serif)
-                </div>
-                <input
-                  className="pf-input"
-                  id="pf-label-font"
-                  type="text"
-                  value={params.displayFont}
-                  onChange={(e) => setParam('displayFont', e.target.value)}
-                  placeholder="Times New Roman"
-                />
-                <p className="pf-help">Must be installed in Figma. Times New Roman is the default placeholder.</p>
-              </div>
-            </>
-          )}
-        </Panel>
-
-        {/* 6. Output Size */}
-        <Panel title="Output Size" id="pf-panel-output">
-          <div className="pf-size-presets">
-            {OUTPUT_PRESET_KEYS.map((key) => (
-              <button
-                key={key}
-                id={`pf-size-${key}`}
-                className={`pf-size-chip ${activeOutputPreset === key ? 'pf-size-chip--active' : ''}`}
-                onClick={() => applyOutputPreset(key)}
-              >
-                {OUTPUT_PRESETS[key].label}
-              </button>
-            ))}
-            <button
-              id="pf-size-custom"
-              className={`pf-size-chip ${activeOutputPreset === 'custom' ? 'pf-size-chip--active' : ''}`}
-              onClick={() => setActiveOutputPreset('custom')}
-            >
-              Custom
-            </button>
-          </div>
-
-          {activeOutputPreset === 'custom' && (
-            <div className="pf-output-custom">
-              <div>
-                <div style={{ fontSize: 10, color: 'var(--pf-text-secondary)', marginBottom: 4 }}>W (px)</div>
-                <input
-                  className="pf-input"
-                  type="number"
-                  min={100} max={8000}
-                  value={params.outputSize.width}
-                  onChange={(e) => setParam('outputSize', { ...params.outputSize, width: Number(e.target.value) })}
-                  id="pf-custom-width"
-                />
-              </div>
-              <div>
-                <div style={{ fontSize: 10, color: 'var(--pf-text-secondary)', marginBottom: 4 }}>H (px)</div>
-                <input
-                  className="pf-input"
-                  type="number"
-                  min={100} max={8000}
-                  value={params.outputSize.height}
-                  onChange={(e) => setParam('outputSize', { ...params.outputSize, height: Number(e.target.value) })}
-                  id="pf-custom-height"
-                />
-              </div>
-            </div>
-          )}
-        </Panel>
-
-        {/* 7. Presets */}
-        <Panel title="Presets" defaultOpen={false} id="pf-panel-presets">
-          <div className="pf-presets-row">
-            {BUILT_IN_PRESETS.map((preset) => (
-              <PresetChip
-                key={preset.id}
-                id={`pf-preset-${preset.id}`}
-                name={preset.name}
-                isBuiltIn
-                isActive={activePresetId === preset.id}
-                onClick={() => {
-                  setActivePresetId(preset.id);
-                  applyPreset(preset);
-                }}
-              />
-            ))}
-            {userPresets.map((preset) => (
-              <PresetChip
-                key={preset.id}
-                id={`pf-preset-${preset.id}`}
-                name={preset.name}
-                isActive={activePresetId === preset.id}
-                onClick={() => {
-                  setActivePresetId(preset.id);
-                  applyPreset(preset);
-                }}
-                onDelete={() => removeUserPreset(preset.id)}
-              />
-            ))}
-          </div>
-
-          {showSavePreset ? (
-            <div className="pf-save-preset">
-              <input
-                className="pf-input"
-                id="pf-save-preset-input"
-                type="text"
-                placeholder="Preset name…"
-                value={savePresetName}
-                onChange={(e) => setSavePresetName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleSavePreset(); if (e.key === 'Escape') setShowSavePreset(false); }}
-                autoFocus
-              />
-              <Button size="sm" variant="primary" onClick={handleSavePreset} id="pf-save-preset-confirm">Save</Button>
-              <Button size="sm" variant="ghost" onClick={() => setShowSavePreset(false)}>✕</Button>
-            </div>
-          ) : (
-            <Button size="sm" variant="ghost" onClick={() => setShowSavePreset(true)} id="pf-save-preset-btn">
-              + Save current as preset
-            </Button>
-          )}
+          <p className="pf-help">Click swatches to change colors.</p>
         </Panel>
 
       </div>

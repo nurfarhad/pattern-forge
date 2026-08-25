@@ -29,6 +29,7 @@ export function generateScene(
     blocks,
     textureRegions,
     labels,
+    customColors: params.customColors,
     ...(gradientBlock ? { gradientBlock } : {}),
   };
   const estimatedNodeCount = estimateNodeCount(params);
@@ -49,6 +50,7 @@ export function generateBatch(
       ...params,
       seed: `${params.seed}-${index}`,
       activeTokens: [...params.activeTokens],
+      customColors: params.customColors ? { ...params.customColors } : undefined,
       scaleRange: [...params.scaleRange],
       opacityRange: [...params.opacityRange],
       blendModes: [...params.blendModes],

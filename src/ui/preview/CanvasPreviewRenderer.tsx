@@ -40,11 +40,15 @@ function loadTexture(spec: TextureSpec): Promise<HTMLImageElement> {
   });
 }
 
-function drawSolidBlock(context: CanvasRenderingContext2D, block: BlockSpec): void {
+function drawSolidBlock(
+  context: CanvasRenderingContext2D,
+  block: BlockSpec,
+  customColors?: Record<string, string>,
+): void {
   context.save();
   context.globalAlpha = block.opacity;
   context.globalCompositeOperation = BLEND_MAP[block.blendMode] || 'source-over';
-  context.fillStyle = tokenToCss(block.fill);
+  context.fillStyle = tokenToCss(block.fill, customColors);
   context.fillRect(block.x, block.y, block.width, block.height);
   context.restore();
 }
@@ -53,6 +57,7 @@ function drawGradientBlock(
   context: CanvasRenderingContext2D,
   block: BlockSpec,
   gradientSpec: GradientSpec,
+  customColors?: Record<string, string>,
 ): void {
   const radians = (gradientSpec.angleDeg * Math.PI) / 180;
   // CSS/Figma-style degrees: 0 points up, 90 right, 180 down.
@@ -68,7 +73,10 @@ function drawGradientBlock(
   const gradient = context.createLinearGradient(startX, startY, endX, endY);
 
   gradientSpec.stops.forEach((stop) => {
-    gradient.addColorStop(Math.min(1, Math.max(0, stop.position)), tokenToCss(stop.color, stop.opacity));
+    gradient.addColorStop(
+      Math.min(1, Math.max(0, stop.position)),
+      tokenToCss(stop.color, customColors, stop.opacity),
+    );
   });
 
   context.save();
@@ -106,16 +114,17 @@ export const CanvasPreviewRenderer: React.FC<CanvasPreviewRendererProps> = ({ sp
     const context = canvas.getContext('2d');
     if (!context) return;
     context.setTransform(scale * pixelRatio, 0, 0, scale * pixelRatio, 0, 0);
-    context.fillStyle = tokenToCss('paper');
+    context.fillStyle = tokenToCss('paper', spec.customColors);
     context.fillRect(0, 0, sceneWidth, sceneHeight);
 
     for (const block of spec.blocks) {
       if (renderId !== renderIdRef.current) return;
-      drawSolidBlock(context, block);
+      drawSolidBlock(context, block, spec.customColors);
     }
 
     if (spec.gradientBlock) {
-      drawGradientBlock(context, spec.gradientBlock, spec.gradientBlock.gradient);
+      if (renderId !== renderIdRef.current) return;
+      drawGradientBlock(context, spec.gradientBlock, spec.gradientBlock.gradient, spec.customColors);
     }
 
     for (const texture of spec.textureRegions) {

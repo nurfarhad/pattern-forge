@@ -68,11 +68,13 @@ export type SceneSpec = {
   textureRegions: TextureSpec[];
   labels: LabelSpec[];
   gradientBlock?: BlockSpec & { gradient: GradientSpec };
+  customColors?: Record<string, string>;
 };
 
 export type GenerationParams = {
   seed: string;
   activeTokens: PaletteToken[];
+  customColors?: Record<string, string>;
   density: number;
   scaleRange: [number, number];
   gridStrictness: number;
@@ -167,14 +169,17 @@ export const DEFAULT_PARAMS: GenerationParams = {
     'electricViolet',
     'orchidMagenta',
     'hotPink',
+    'blush',
     'forestGreen',
-    'slateBlueGray',
+    'sageMint',
     'sand',
+    'amber',
+    'slateBlueGray',
   ],
   density: 6,
   scaleRange: [0.05, 0.45],
   gridStrictness: 0.4,
-  blendModes: ['MULTIPLY'],
+  blendModes: ['NORMAL', 'MULTIPLY', 'SCREEN', 'DARKEN'],
   opacityRange: [0.1, 1],
   textureEnabled: true,
   textureDensity: 2.5,

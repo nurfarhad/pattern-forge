@@ -58,20 +58,14 @@ function safeOpacity(v: unknown, fallback = 1): number {
 
 // ─── FR-6/FR-8: create a block RectangleNode ──────────────────────────────
 
-function createBlockNode(block: BlockSpec, parentX: number, parentY: number): RectangleNode {
+function createBlockNode(
+  block: BlockSpec,
+  parentX: number,
+  parentY: number,
+  customColors?: Record<string, string>,
+): RectangleNode {
   const rect = figma.createRectangle();
   rect.name = block.id;
-  // figma.group(nodes, frame) preserves each node's ABSOLUTE position (see
-  // https://developers.figma.com/docs — "keeping all the grouped layers in
-  // the same absolute x/y locations"). Since these rects are created directly
-  // on figma.currentPage (absolute space) and only later grouped INTO `frame`
-  // (which itself sits at absolute (parentX, parentY)), we must give each node
-  // its true absolute position up front — block.x/y alone is only the
-  // composition-LOCAL coordinate. Skipping the +parentX/+parentY here is what
-  // caused the "clustered in one corner" bug: content ended up positioned at
-  // absolute (block.x, block.y) regardless of where the target frame actually
-  // sits on the page, so only the sliver that coincidentally overlapped the
-  // frame's clip bounds survived.
   rect.x = block.x + parentX;
   rect.y = block.y + parentY;
   rect.resize(Math.max(1, block.width), Math.max(1, block.height));
@@ -83,7 +77,7 @@ function createBlockNode(block: BlockSpec, parentX: number, parentY: number): Re
     const { gradient } = block;
     const stops: ColorStop[] = gradient.stops.map((s) => ({
       position: Math.min(1, Math.max(0, s.position)),
-      color: { ...resolveToken(s.color), a: safeOpacity(s.opacity, 1) },
+      color: { ...resolveToken(s.color, customColors), a: safeOpacity(s.opacity, 1) },
     }));
 
     rect.fills = [{
@@ -99,7 +93,7 @@ function createBlockNode(block: BlockSpec, parentX: number, parentY: number): Re
     }];
   } else {
     // FR-6: SOLID fill — independently recolorable
-    const color = resolveToken(block.fill);
+    const color = resolveToken(block.fill, customColors);
     rect.fills = [{ type: 'SOLID', color }];
   }
 
@@ -108,18 +102,21 @@ function createBlockNode(block: BlockSpec, parentX: number, parentY: number): Re
 
 // ─── FR-7: create a texture node via createNodeFromSvg ──────────────────
 
-function createTextureNode(tex: TextureSpec, parentX: number, parentY: number): SceneNode {
-  const hex = PALETTE[tex.ink];
+function createTextureNode(
+  tex: TextureSpec,
+  parentX: number,
+  parentY: number,
+  customColors?: Record<string, string>,
+): SceneNode {
+  const hex = PALETTE[tex.ink] || '#1E1E1E';
   const svgString = buildDotGridSvg(tex, hex);
 
   const node = figma.createNodeFromSvg(svgString);
   node.name = tex.id;
-  // See createBlockNode: must supply true absolute position before grouping into frame.
   node.x = tex.region.x + parentX;
   node.y = tex.region.y + parentY;
   node.opacity = safeOpacity(tex.opacity, 0.15);
 
-  // Resize to exact region (SVG intrinsic size matches, but be safe)
   node.resize(Math.max(1, tex.region.width), Math.max(1, tex.region.height));
 
   return node;
@@ -138,7 +135,6 @@ async function createLabelNode(
   text.fontName = fontName;
   text.fontSize = Math.max(1, label.size);
   text.characters = label.text;
-  // See createBlockNode: must supply true absolute position before grouping into frame.
   text.x = label.x + parentX;
   text.y = label.y + parentY;
   text.opacity = safeOpacity(label.opacity, 0.85);
@@ -160,12 +156,6 @@ export interface RenderOptions {
 /**
  * Render a SceneSpec to Figma nodes.
  * Returns the created wrapper FrameNode.
- *
- * FR-6: All output is independently selectable/editable.
- * FR-7: Texture via createNodeFromSvg — no IMAGE paint.
- * FR-8: Blend mode set per-node — not pre-mixed colors.
- * FR-9: Gradient via GRADIENT_LINEAR — editable handles.
- * FR-10: Labels are real TextNodes — double-click to edit.
  */
 export async function renderToFigma(
   spec: SceneSpec,
@@ -184,15 +174,6 @@ export async function renderToFigma(
     const bb = targetNode.absoluteBoundingBox;
     if (bb) {
       if (mode === 'mask') {
-        // Mask mode's canvas is deliberately sized to the full requested output
-        // (see resolveCanvasSize in layout.ts) so content can extend past the
-        // anchor shape, and layout.ts centers the dense cluster at the canvas's
-        // own center (width*0.5, height*0.5). If we anchor the frame at the
-        // shape's top-left corner (as fill mode correctly does, since fill's
-        // canvas is sized exactly to the shape), the shape ends up sitting at
-        // the frame's top-left corner instead of at the visual center of the
-        // generated field. Anchor the shape's own center to the frame's local
-        // center instead, so it lines up with where layout.ts centers the cluster.
         const shapeCenterX = bb.x + bb.width / 2;
         const shapeCenterY = bb.y + bb.height / 2;
         parentX = shapeCenterX - spec.canvas.width / 2;
@@ -205,7 +186,6 @@ export async function renderToFigma(
   }
 
   // ── Create wrapper frame ────────────────────────────────────────────────
-  // PRD §11: named "Pattern — seed XXXX"
   const frame = figma.createFrame();
   frame.name = `Pattern — seed ${spec.seed}`;
   frame.x = parentX;
@@ -214,7 +194,6 @@ export async function renderToFigma(
   frame.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
   frame.clipsContent = true;
 
-  // Place frame on canvas immediately so it has a valid parent context
   figma.currentPage.appendChild(frame);
 
   try {
@@ -225,7 +204,7 @@ export async function renderToFigma(
     ];
     if (allBlocksToRender.length > 0) {
       const blockNodes: RectangleNode[] = allBlocksToRender.map((block) =>
-        createBlockNode(block, parentX, parentY)
+        createBlockNode(block, parentX, parentY, params.customColors)
       );
       const blocksGroup = figma.group(blockNodes, frame);
       blocksGroup.name = 'Blocks';
@@ -234,7 +213,7 @@ export async function renderToFigma(
     // ── Texture group ────────────────────────────────────────────────────────
     if (spec.textureRegions.length > 0) {
       const texNodes: SceneNode[] = spec.textureRegions.map((tex) =>
-        createTextureNode(tex, parentX, parentY)
+        createTextureNode(tex, parentX, parentY, params.customColors)
       );
       const texGroup = figma.group(texNodes, frame);
       texGroup.name = 'Texture';
@@ -351,7 +330,7 @@ export async function renderInPlace(
     ];
     if (allBlocksToRender.length > 0) {
       const blockNodes: RectangleNode[] = allBlocksToRender.map((block) =>
-        createBlockNode(block, parentX, parentY)
+        createBlockNode(block, parentX, parentY, params.customColors)
       );
       const blocksGroup = figma.group(blockNodes, tempFrame);
       blocksGroup.name = 'Blocks';
@@ -360,7 +339,7 @@ export async function renderInPlace(
     // ── Texture group ────────────────────────────────────────────────────────
     if (spec.textureRegions.length > 0) {
       const texNodes: SceneNode[] = spec.textureRegions.map((tex) =>
-        createTextureNode(tex, parentX, parentY)
+        createTextureNode(tex, parentX, parentY, params.customColors)
       );
       const texGroup = figma.group(texNodes, tempFrame);
       texGroup.name = 'Texture';

@@ -7029,45 +7029,6 @@ var m = reactDomExports;
   client.createRoot = m.createRoot;
   client.hydrateRoot = m.hydrateRoot;
 }
-const Slider = ({
-  label,
-  value,
-  min,
-  max,
-  step = 0.01,
-  decimals = 1,
-  unit = "",
-  onChange,
-  id: id2
-}) => {
-  const percent = (value - min) / (max - min) * 100;
-  const displayVal = Number.isInteger(value) && decimals === 0 ? value : value.toFixed(decimals);
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pf-slider", id: id2, children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pf-slider__header", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pf-slider__label", children: label }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "pf-slider__value", children: [
-        displayVal,
-        unit
-      ] })
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pf-slider__track-wrap", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "pf-slider__fill", style: { width: `${percent}%` } }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        "input",
-        {
-          type: "range",
-          className: "pf-slider__input",
-          min,
-          max,
-          step,
-          value,
-          onChange: (e) => onChange(parseFloat(e.target.value)),
-          "aria-label": label
-        }
-      )
-    ] })
-  ] });
-};
 const Panel = ({ title, children, defaultOpen = true, id: id2 }) => {
   const [open, setOpen] = reactExports.useState(defaultOpen);
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: `pf-panel ${open ? "pf-panel--open" : ""}`, id: id2, children: [
@@ -7112,16 +7073,16 @@ const PALETTE = {
   // secondary
   hotPink: "#FC4890",
   // secondary
-  blush: "#F0D8E4",
-  // pale pastel accent
+  blush: "#524E56",
+  // dark slate gray
   forestGreen: "#3C9054",
   // dark end of signature gradient block
-  sageMint: "#A8C0A8",
-  // light end of gradient block
+  sageMint: "#405040",
+  // dark moss
   sand: "#FCE4C0",
   // cream/tan bars
-  amber: "#F0B400",
-  // rare gold accent
+  amber: "#6B5C20",
+  // olive amber
   slateBlueGray: "#6C9CCC",
   // cool block, pairs with orange
   ink: "#1E1E1E",
@@ -7139,12 +7100,20 @@ function hexToRgb(hex) {
     b: parseInt(h.slice(4, 6), 16) / 255
   };
 }
-function resolveToken(token) {
-  return hexToRgb(PALETTE[token]);
+function getTokenHex(token, customColors) {
+  if (customColors && customColors[token]) {
+    return customColors[token];
+  }
+  return PALETTE[token] || "#000000";
 }
-function tokenToCss(token, opacity = 1) {
-  const { r: r2, g, b } = resolveToken(token);
-  return `rgba(${Math.round(r2 * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, ${opacity})`;
+function resolveToken(token, customColors) {
+  return hexToRgb(getTokenHex(token, customColors));
+}
+function tokenToCss(token, customColorsOrOpacity, opacity = 1) {
+  const custom = typeof customColorsOrOpacity === "object" ? customColorsOrOpacity : void 0;
+  const op = typeof customColorsOrOpacity === "number" ? customColorsOrOpacity : opacity;
+  const { r: r2, g, b } = resolveToken(token, custom);
+  return `rgba(${Math.round(r2 * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, ${op})`;
 }
 const ALL_ACTIVE_TOKENS = [
   "signalOrange",
@@ -7165,68 +7134,65 @@ const TOKEN_LABELS = {
   electricViolet: "Electric Violet",
   orchidMagenta: "Orchid Magenta",
   hotPink: "Hot Pink",
-  blush: "Blush",
+  blush: "Slate Gray",
   forestGreen: "Forest Green",
-  sageMint: "Sage Mint",
+  sageMint: "Dark Moss",
   sand: "Sand",
-  amber: "Amber",
+  amber: "Olive Amber",
   slateBlueGray: "Slate Blue-Gray",
   ink: "Ink",
   paper: "Paper",
   fog: "Fog"
 };
-const SwatchGrid = ({ activeTokens, onChange }) => {
-  const toggleToken = (token) => {
-    const isActive = activeTokens.includes(token);
-    if (isActive && activeTokens.length <= 1) return;
-    const next = isActive ? activeTokens.filter((t2) => t2 !== token) : [...activeTokens, token];
-    onChange(next);
+const SwatchGrid = ({
+  activeTokens,
+  customColors,
+  onColorChange
+}) => {
+  const inputRefs = reactExports.useRef({});
+  const handleSwatchClick = (token) => {
+    const input = inputRefs.current[token];
+    if (input) {
+      input.click();
+    }
   };
-  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "pf-swatch-grid", role: "group", "aria-label": "Active palette tokens", children: ALL_ACTIVE_TOKENS.map((token) => {
-    const isActive = activeTokens.includes(token);
-    const hex = PALETTE[token];
-    return /* @__PURE__ */ jsxRuntimeExports.jsx(
-      "button",
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "pf-swatch-grid", role: "group", "aria-label": "11 color palette blocks", children: ALL_ACTIVE_TOKENS.map((token) => {
+    const hex = getTokenHex(token, customColors);
+    return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "div",
       {
-        className: `pf-swatch ${isActive ? "pf-swatch--active" : "pf-swatch--inactive"}`,
-        style: { "--swatch-color": hex },
-        onClick: () => toggleToken(token),
-        title: `${TOKEN_LABELS[token]} (${hex}) — ${isActive ? "click to remove" : "click to add"}`,
-        "aria-label": `${TOKEN_LABELS[token]} — ${isActive ? "active" : "inactive"}`,
-        "aria-pressed": isActive,
-        id: `pf-swatch-${token}`
+        className: "pf-swatch-wrapper",
+        title: `${TOKEN_LABELS[token]} (${hex}) — Click to change color`,
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              type: "button",
+              className: "pf-swatch",
+              style: { "--swatch-color": hex },
+              onClick: () => handleSwatchClick(token),
+              "aria-label": `${TOKEN_LABELS[token]} (${hex}) — Click to change color`,
+              id: `pf-swatch-${token}`
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "input",
+            {
+              ref: (el2) => {
+                inputRefs.current[token] = el2;
+              },
+              type: "color",
+              className: "pf-swatch-color-input",
+              value: hex.startsWith("#") && hex.length === 7 ? hex : "#FC4800",
+              onChange: (e) => onColorChange(token, e.target.value.toUpperCase())
+            }
+          )
+        ]
       },
       token
     );
   }) });
 };
-const PresetChip = ({
-  name,
-  isBuiltIn,
-  isActive,
-  onClick,
-  onDelete,
-  id: id2
-}) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
-  "div",
-  {
-    className: `pf-preset-chip ${isActive ? "pf-preset-chip--active" : ""} ${isBuiltIn ? "pf-preset-chip--builtin" : ""}`,
-    id: id2,
-    children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "pf-preset-chip__btn", onClick, title: `Load preset: ${name}`, children: name }),
-      !isBuiltIn && onDelete && /* @__PURE__ */ jsxRuntimeExports.jsx(
-        "button",
-        {
-          className: "pf-preset-chip__delete",
-          onClick: onDelete,
-          title: `Delete preset: ${name}`,
-          "aria-label": `Delete ${name}`,
-          children: "×"
-        }
-      )
-    ]
-  }
-);
 const DEFAULT_DOT_SIZE = 1.5;
 const MAX_TEXTURE_DOTS_PER_REGION = 2400;
 function buildDotGridSvg(spec, resolvedInkHex) {
@@ -7281,15 +7247,15 @@ function loadTexture(spec) {
     image.src = textureSpecToDataUrl(spec);
   });
 }
-function drawSolidBlock(context, block) {
+function drawSolidBlock(context, block, customColors) {
   context.save();
   context.globalAlpha = block.opacity;
   context.globalCompositeOperation = BLEND_MAP[block.blendMode] || "source-over";
-  context.fillStyle = tokenToCss(block.fill);
+  context.fillStyle = tokenToCss(block.fill, customColors);
   context.fillRect(block.x, block.y, block.width, block.height);
   context.restore();
 }
-function drawGradientBlock(context, block, gradientSpec) {
+function drawGradientBlock(context, block, gradientSpec, customColors) {
   const radians = gradientSpec.angleDeg * Math.PI / 180;
   const directionX = Math.sin(radians);
   const directionY = -Math.cos(radians);
@@ -7302,7 +7268,10 @@ function drawGradientBlock(context, block, gradientSpec) {
   const endY = centerY + directionY * length / 2;
   const gradient = context.createLinearGradient(startX, startY, endX, endY);
   gradientSpec.stops.forEach((stop) => {
-    gradient.addColorStop(Math.min(1, Math.max(0, stop.position)), tokenToCss(stop.color, stop.opacity));
+    gradient.addColorStop(
+      Math.min(1, Math.max(0, stop.position)),
+      tokenToCss(stop.color, customColors, stop.opacity)
+    );
   });
   context.save();
   context.globalAlpha = block.opacity;
@@ -7334,14 +7303,15 @@ const CanvasPreviewRenderer = ({ spec, onRender }) => {
     const context = canvas.getContext("2d");
     if (!context) return;
     context.setTransform(scale * pixelRatio, 0, 0, scale * pixelRatio, 0, 0);
-    context.fillStyle = tokenToCss("paper");
+    context.fillStyle = tokenToCss("paper", spec.customColors);
     context.fillRect(0, 0, sceneWidth, sceneHeight);
     for (const block of spec.blocks) {
       if (renderId !== renderIdRef.current) return;
-      drawSolidBlock(context, block);
+      drawSolidBlock(context, block, spec.customColors);
     }
     if (spec.gradientBlock) {
-      drawGradientBlock(context, spec.gradientBlock, spec.gradientBlock.gradient);
+      if (renderId !== renderIdRef.current) return;
+      drawGradientBlock(context, spec.gradientBlock, spec.gradientBlock.gradient, spec.customColors);
     }
     for (const texture of spec.textureRegions) {
       if (renderId !== renderIdRef.current) return;
@@ -7602,12 +7572,6 @@ const createImpl = (createState) => {
   return useBoundStore;
 };
 const create = (createState) => createState ? createImpl(createState) : createImpl;
-const OUTPUT_PRESETS = {
-  square: { width: 1080, height: 1080, label: "Square 1:1" },
-  widescreen: { width: 1920, height: 1080, label: "Widescreen 16:9" },
-  portrait: { width: 1080, height: 1920, label: "Portrait 9:16" },
-  social: { width: 1200, height: 628, label: "Social OG 1.9:1" }
-};
 const DEFAULT_PARAMS = {
   seed: "8842",
   activeTokens: [
@@ -7616,14 +7580,17 @@ const DEFAULT_PARAMS = {
     "electricViolet",
     "orchidMagenta",
     "hotPink",
+    "blush",
     "forestGreen",
-    "slateBlueGray",
-    "sand"
+    "sageMint",
+    "sand",
+    "amber",
+    "slateBlueGray"
   ],
   density: 6,
   scaleRange: [0.05, 0.45],
   gridStrictness: 0.4,
-  blendModes: ["MULTIPLY"],
+  blendModes: ["NORMAL", "MULTIPLY", "SCREEN", "DARKEN"],
   opacityRange: [0.1, 1],
   textureEnabled: true,
   textureDensity: 2.5,
@@ -7952,7 +7919,8 @@ function generateScene(params, constraints) {
     canvas,
     blocks,
     textureRegions,
-    labels
+    labels,
+    customColors: params.customColors
   }, gradientBlock ? { gradientBlock } : {});
   const estimatedNodeCount = estimateNodeCount(params);
   return {
@@ -7961,53 +7929,6 @@ function generateScene(params, constraints) {
     exceedsThreshold: estimatedNodeCount > NODE_COUNT_WARNING_THRESHOLD
   };
 }
-const BUILT_IN_PRESETS = [
-  {
-    id: "dense-cluster",
-    name: "Dense Cluster",
-    isBuiltIn: true,
-    params: {
-      density: 9,
-      scaleRange: [0.08, 0.48],
-      gridStrictness: 0.3,
-      blendModes: ["MULTIPLY"],
-      opacityRange: [0.1, 1],
-      textureEnabled: true,
-      textureDensity: 2.5,
-      activeTokens: ["signalOrange", "alertRed", "electricViolet", "orchidMagenta", "hotPink"]
-    }
-  },
-  {
-    id: "scattered-minimal",
-    name: "Scattered Minimal",
-    isBuiltIn: true,
-    params: {
-      density: 3,
-      scaleRange: [0.04, 0.22],
-      gridStrictness: 0.7,
-      blendModes: ["NORMAL"],
-      opacityRange: [0.1, 1],
-      textureEnabled: true,
-      textureDensity: 2.5,
-      activeTokens: ["signalOrange", "slateBlueGray", "sand", "alertRed"]
-    }
-  },
-  {
-    id: "high-contrast-mono",
-    name: "High Contrast Mono-Block",
-    isBuiltIn: true,
-    params: {
-      density: 5,
-      scaleRange: [0.15, 0.55],
-      gridStrictness: 0.85,
-      blendModes: ["DARKEN"],
-      opacityRange: [0.1, 1],
-      textureEnabled: false,
-      textureDensity: 2.5,
-      activeTokens: ["alertRed", "electricViolet", "ink"]
-    }
-  }
-];
 function randomSeed() {
   return String(Math.floor(Math.random() * 99999));
 }
@@ -8147,30 +8068,22 @@ function onPluginMessage(handler) {
   window.addEventListener("message", listener);
   return () => window.removeEventListener("message", listener);
 }
-const OUTPUT_PRESET_KEYS = Object.keys(OUTPUT_PRESETS);
 const App = () => {
-  var _a, _b, _c, _d, _e, _f, _g, _h;
+  var _a, _b, _c, _d, _e, _f;
   const store = useParamsStore();
   const {
     params,
     mode,
     currentSpec,
-    userPresets,
     setParam,
+    setParams,
     setMode,
     regenerate,
-    applyPreset,
-    addUserPreset,
-    removeUserPreset,
     loadRecipe,
     setInserting,
     isInserting,
     constraints
   } = store;
-  const [activePresetId, setActivePresetId] = reactExports.useState("dense-cluster");
-  const [savePresetName, setSavePresetName] = reactExports.useState("");
-  const [showSavePreset, setShowSavePreset] = reactExports.useState(false);
-  const [activeOutputPreset, setActiveOutputPreset] = reactExports.useState("square");
   const liveTimerRef = React$2.useRef(null);
   const isSyncingRecipeRef = React$2.useRef(false);
   const isFirstRender = React$2.useRef(true);
@@ -8215,9 +8128,11 @@ const App = () => {
   }, [params, constraints == null ? void 0 : constraints.canLiveUpdate, constraints == null ? void 0 : constraints.liveTargetId]);
   const nodeCount = estimateNodeCount(params);
   const nodeCountWarning = nodeCount > 400;
-  const applyOutputPreset = (key) => {
-    setActiveOutputPreset(key);
-    setParam("outputSize", { width: OUTPUT_PRESETS[key].width, height: OUTPUT_PRESETS[key].height });
+  const handleColorChange = (token, newHex) => {
+    const updatedCustom = __spreadProps(__spreadValues({}, params.customColors || {}), {
+      [token]: newHex
+    });
+    setParam("customColors", updatedCustom);
   };
   const handleInsert = () => {
     if (nodeCountWarning) {
@@ -8231,17 +8146,6 @@ const App = () => {
   };
   const handleRegenerate = () => {
     regenerate();
-  };
-  const handleSavePreset = () => {
-    if (!savePresetName.trim()) return;
-    addUserPreset({
-      id: `user-${Date.now()}`,
-      name: savePresetName.trim(),
-      params,
-      isBuiltIn: false
-    });
-    setSavePresetName("");
-    setShowSavePreset(false);
   };
   const isLiveArmed = Boolean((constraints == null ? void 0 : constraints.canLiveUpdate) && constraints.liveTargetId);
   const modeBadgeClass = isLiveArmed ? "pf-header__mode-badge--live" : {
@@ -8299,296 +8203,11 @@ const App = () => {
           SwatchGrid,
           {
             activeTokens: params.activeTokens,
-            onChange: (tokens) => setParam("activeTokens", tokens)
+            customColors: params.customColors,
+            onColorChange: handleColorChange
           }
         ),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "pf-help", children: "Click swatches to toggle colors in/out of rotation." })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs(Panel, { title: "Composition", id: "pf-panel-composition", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          Slider,
-          {
-            id: "pf-slider-density",
-            label: "Density",
-            value: params.density,
-            min: 1,
-            max: 10,
-            step: 0.5,
-            decimals: 1,
-            onChange: (v2) => setParam("density", v2)
-          }
-        ),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          Slider,
-          {
-            id: "pf-slider-grid",
-            label: "Grid Strictness",
-            value: params.gridStrictness,
-            min: 0,
-            max: 1,
-            step: 0.05,
-            decimals: 2,
-            onChange: (v2) => setParam("gridStrictness", v2)
-          }
-        ),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 10, color: "var(--pf-text-secondary)", marginBottom: 6, fontWeight: 500, letterSpacing: "0.03em" }, children: "Block Scale Range" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pf-range-row", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              Slider,
-              {
-                id: "pf-slider-scale-min",
-                label: "Min",
-                value: params.scaleRange[0],
-                min: 0.02,
-                max: params.scaleRange[1] - 0.02,
-                step: 0.01,
-                decimals: 2,
-                onChange: (v2) => setParam("scaleRange", [v2, params.scaleRange[1]])
-              }
-            ),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              Slider,
-              {
-                id: "pf-slider-scale-max",
-                label: "Max",
-                value: params.scaleRange[1],
-                min: params.scaleRange[0] + 0.02,
-                max: 0.7,
-                step: 0.01,
-                decimals: 2,
-                onChange: (v2) => setParam("scaleRange", [params.scaleRange[0], v2])
-              }
-            )
-          ] })
-        ] })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs(Panel, { title: "Blend & Texture", id: "pf-panel-blend", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 10, color: "var(--pf-text-secondary)", marginBottom: 4, fontWeight: 500 }, children: "Blend Mode" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", gap: 4, flexWrap: "wrap" }, children: ["NORMAL", "MULTIPLY", "SCREEN", "DARKEN"].map((bm) => {
-            const isActive = params.blendModes.includes(bm);
-            return /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "button",
-              {
-                id: `pf-blend-${bm.toLowerCase()}`,
-                className: `pf-size-chip ${isActive ? "pf-size-chip--active" : ""}`,
-                "aria-pressed": isActive,
-                onClick: () => {
-                  if (isActive && params.blendModes.length <= 1) return;
-                  const next = isActive ? params.blendModes.filter((m2) => m2 !== bm) : [...params.blendModes, bm];
-                  setParam("blendModes", next);
-                },
-                children: bm
-              },
-              bm
-            );
-          }) })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pf-toggle-row", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pf-toggle-row__label", children: "Halftone Texture" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "pf-toggle", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "input",
-              {
-                type: "checkbox",
-                checked: params.textureEnabled,
-                onChange: (e) => setParam("textureEnabled", e.target.checked),
-                id: "pf-toggle-texture"
-              }
-            ),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pf-toggle__slider" })
-          ] })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pf-toggle-row", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pf-toggle-row__label", children: "Gradient Block" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "pf-toggle", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "input",
-              {
-                type: "checkbox",
-                checked: params.gradientEnabled,
-                onChange: (e) => setParam("gradientEnabled", e.target.checked),
-                id: "pf-toggle-gradient"
-              }
-            ),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pf-toggle__slider" })
-          ] })
-        ] })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs(Panel, { title: "Labels", id: "pf-panel-labels", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pf-toggle-row", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pf-toggle-row__label", children: "Data-readout Labels" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "pf-toggle", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "input",
-              {
-                type: "checkbox",
-                checked: params.labelsEnabled,
-                onChange: (e) => setParam("labelsEnabled", e.target.checked),
-                id: "pf-toggle-labels"
-              }
-            ),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pf-toggle__slider" })
-          ] })
-        ] }),
-        params.labelsEnabled && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pf-mode-tabs", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "button",
-              {
-                className: `pf-mode-tab ${params.labelSource === "generated" ? "pf-mode-tab--active" : ""}`,
-                onClick: () => setParam("labelSource", "generated"),
-                id: "pf-label-source-generated",
-                children: "Generated"
-              }
-            ),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "button",
-              {
-                className: `pf-mode-tab ${params.labelSource === "custom" ? "pf-mode-tab--active" : ""}`,
-                onClick: () => setParam("labelSource", "custom"),
-                id: "pf-label-source-custom",
-                children: "Custom"
-              }
-            )
-          ] }),
-          params.labelSource === "custom" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "textarea",
-              {
-                className: "pf-textarea",
-                id: "pf-label-custom-input",
-                placeholder: "One label per line\ne.g. BRAND 2045\nXC% R6.O2",
-                value: (_f = (_e = params.customLabels) == null ? void 0 : _e.join("\n")) != null ? _f : "",
-                onChange: (e) => setParam("customLabels", e.target.value.split("\n").filter(Boolean))
-              }
-            ),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "pf-help", children: "One entry per line. Leave empty to fall back to generated codes." })
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 10, color: "var(--pf-text-secondary)", marginBottom: 4, fontWeight: 500 }, children: "Font (display serif)" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "input",
-              {
-                className: "pf-input",
-                id: "pf-label-font",
-                type: "text",
-                value: params.displayFont,
-                onChange: (e) => setParam("displayFont", e.target.value),
-                placeholder: "Times New Roman"
-              }
-            ),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "pf-help", children: "Must be installed in Figma. Times New Roman is the default placeholder." })
-          ] })
-        ] })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs(Panel, { title: "Output Size", id: "pf-panel-output", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pf-size-presets", children: [
-          OUTPUT_PRESET_KEYS.map((key) => /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "button",
-            {
-              id: `pf-size-${key}`,
-              className: `pf-size-chip ${activeOutputPreset === key ? "pf-size-chip--active" : ""}`,
-              onClick: () => applyOutputPreset(key),
-              children: OUTPUT_PRESETS[key].label
-            },
-            key
-          )),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "button",
-            {
-              id: "pf-size-custom",
-              className: `pf-size-chip ${activeOutputPreset === "custom" ? "pf-size-chip--active" : ""}`,
-              onClick: () => setActiveOutputPreset("custom"),
-              children: "Custom"
-            }
-          )
-        ] }),
-        activeOutputPreset === "custom" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pf-output-custom", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 10, color: "var(--pf-text-secondary)", marginBottom: 4 }, children: "W (px)" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "input",
-              {
-                className: "pf-input",
-                type: "number",
-                min: 100,
-                max: 8e3,
-                value: params.outputSize.width,
-                onChange: (e) => setParam("outputSize", __spreadProps(__spreadValues({}, params.outputSize), { width: Number(e.target.value) })),
-                id: "pf-custom-width"
-              }
-            )
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 10, color: "var(--pf-text-secondary)", marginBottom: 4 }, children: "H (px)" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "input",
-              {
-                className: "pf-input",
-                type: "number",
-                min: 100,
-                max: 8e3,
-                value: params.outputSize.height,
-                onChange: (e) => setParam("outputSize", __spreadProps(__spreadValues({}, params.outputSize), { height: Number(e.target.value) })),
-                id: "pf-custom-height"
-              }
-            )
-          ] })
-        ] })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs(Panel, { title: "Presets", defaultOpen: false, id: "pf-panel-presets", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pf-presets-row", children: [
-          BUILT_IN_PRESETS.map((preset) => /* @__PURE__ */ jsxRuntimeExports.jsx(
-            PresetChip,
-            {
-              id: `pf-preset-${preset.id}`,
-              name: preset.name,
-              isBuiltIn: true,
-              isActive: activePresetId === preset.id,
-              onClick: () => {
-                setActivePresetId(preset.id);
-                applyPreset(preset);
-              }
-            },
-            preset.id
-          )),
-          userPresets.map((preset) => /* @__PURE__ */ jsxRuntimeExports.jsx(
-            PresetChip,
-            {
-              id: `pf-preset-${preset.id}`,
-              name: preset.name,
-              isActive: activePresetId === preset.id,
-              onClick: () => {
-                setActivePresetId(preset.id);
-                applyPreset(preset);
-              },
-              onDelete: () => removeUserPreset(preset.id)
-            },
-            preset.id
-          ))
-        ] }),
-        showSavePreset ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pf-save-preset", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "input",
-            {
-              className: "pf-input",
-              id: "pf-save-preset-input",
-              type: "text",
-              placeholder: "Preset name…",
-              value: savePresetName,
-              onChange: (e) => setSavePresetName(e.target.value),
-              onKeyDown: (e) => {
-                if (e.key === "Enter") handleSavePreset();
-                if (e.key === "Escape") setShowSavePreset(false);
-              },
-              autoFocus: true
-            }
-          ),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Button, { size: "sm", variant: "primary", onClick: handleSavePreset, id: "pf-save-preset-confirm", children: "Save" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Button, { size: "sm", variant: "ghost", onClick: () => setShowSavePreset(false), children: "✕" })
-        ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx(Button, { size: "sm", variant: "ghost", onClick: () => setShowSavePreset(true), id: "pf-save-preset-btn", children: "+ Save current as preset" })
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "pf-help", children: "Click swatches to change colors." })
       ] })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("footer", { className: "pf-footer", children: [
@@ -8611,8 +8230,8 @@ const App = () => {
           fullWidth: true,
           onClick: handleInsert,
           disabled: isInserting,
-          title: mode === "batch" ? `Fill ${(_g = constraints == null ? void 0 : constraints.shapes.length) != null ? _g : 0} selected shapes` : "Insert pattern to canvas",
-          children: isInserting ? "Inserting…" : mode === "batch" ? `Fill ${(_h = constraints == null ? void 0 : constraints.shapes.length) != null ? _h : 0} Shapes` : "↓ Insert to Canvas"
+          title: mode === "batch" ? `Fill ${(_e = constraints == null ? void 0 : constraints.shapes.length) != null ? _e : 0} selected shapes` : "Insert pattern to canvas",
+          children: isInserting ? "Inserting…" : mode === "batch" ? `Fill ${(_f = constraints == null ? void 0 : constraints.shapes.length) != null ? _f : 0} Shapes` : "↓ Insert to Canvas"
         }
       )
     ] })
@@ -9075,64 +8694,6 @@ body {
   border: 1px solid var(--pf-border);
   font-variant-numeric: tabular-nums;
 }
-.pf-slider {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.pf-slider__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.pf-slider__label {
-  font-size: 11px;
-  color: var(--pf-text-secondary);
-  font-weight: 500;
-  letter-spacing: 0.03em;
-}
-
-.pf-slider__value {
-  font-size: 11px;
-  color: var(--pf-accent);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  min-width: 32px;
-  text-align: right;
-}
-
-.pf-slider__track-wrap {
-  position: relative;
-  height: 4px;
-  background: var(--pf-track-bg);
-  border-radius: 2px;
-}
-
-.pf-slider__fill {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%;
-  background: var(--pf-accent);
-  border-radius: 2px;
-  pointer-events: none;
-  transition: width 0.05s;
-}
-
-.pf-slider__input {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  width: 100%;
-  height: 20px;
-  transform: translateY(-50%);
-  opacity: 0;
-  cursor: pointer;
-  margin: 0;
-  padding: 0;
-}
 .pf-panel {
   border-bottom: 1px solid var(--pf-border);
 }
@@ -9242,96 +8803,48 @@ body {
 .pf-swatch-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
+  gap: 6px;
+  align-items: center;
+}
+
+.pf-swatch-wrapper {
+  position: relative;
+  display: inline-flex;
 }
 
 .pf-swatch {
-  width: 22px;
-  height: 22px;
-  border-radius: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
   background-color: var(--swatch-color);
-  border: 2px solid transparent;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
   cursor: pointer;
-  transition: transform 0.12s, border-color 0.12s, opacity 0.12s;
+  transition: transform 0.12s, box-shadow 0.12s;
   padding: 0;
 }
 
 .pf-swatch:hover {
   transform: scale(1.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
-.pf-swatch--active {
-  border-color: var(--pf-text-primary);
-  opacity: 1;
+.pf-swatch:focus-visible {
+  outline: 2px solid var(--pf-accent);
+  outline-offset: 1px;
 }
 
-.pf-swatch--inactive {
-  opacity: 0.3;
-  border-color: transparent;
-}
-
-.pf-swatch--inactive:hover {
-  opacity: 0.7;
-}
-.pf-preset-chip {
-  display: inline-flex;
-  align-items: center;
-  border-radius: 4px;
-  border: 1px solid var(--pf-border);
-  background: var(--pf-surface-2);
-  overflow: hidden;
-  transition: border-color 0.15s;
-}
-
-.pf-preset-chip--active {
-  border-color: var(--pf-accent);
-  background: rgba(252, 72, 0, 0.08);
-}
-
-.pf-preset-chip--builtin {
-  border-style: dashed;
-}
-
-.pf-preset-chip__btn {
-  font-size: 10px;
-  font-weight: 500;
-  padding: 4px 8px;
-  background: none;
+.pf-swatch-color-input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
   border: none;
-  cursor: pointer;
-  color: var(--pf-text-primary);
-  white-space: nowrap;
-  font-family: inherit;
-  transition: color 0.12s;
-}
-
-.pf-preset-chip--active .pf-preset-chip__btn {
-  color: var(--pf-accent);
-}
-
-.pf-preset-chip__btn:hover {
-  color: var(--pf-accent);
-}
-
-.pf-preset-chip__delete {
-  width: 20px;
-  height: 22px;
-  background: none;
-  border: none;
-  border-left: 1px solid var(--pf-border);
-  cursor: pointer;
-  color: var(--pf-text-muted);
-  font-size: 13px;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: color 0.12s, background 0.12s;
-}
-
-.pf-preset-chip__delete:hover {
-  color: #FC3018;
-  background: rgba(252,48,24,0.08);
+  padding: 0;
+  margin: 0;
 }
 .pf-preview-container {
   width: 100%;

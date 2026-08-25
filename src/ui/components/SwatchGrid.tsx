@@ -1,40 +1,55 @@
-// ─── Palette swatch grid ──────────────────────────────────────────────────────
-import React from 'react';
+// ─── Palette swatch grid with customizable colors ─────────────────────────────
+import React, { useRef } from 'react';
 import type { PaletteToken } from '@generator/scene-spec';
-import { PALETTE, TOKEN_LABELS, ALL_ACTIVE_TOKENS } from '@generator/palette';
+import { getTokenHex, TOKEN_LABELS, ALL_ACTIVE_TOKENS } from '@generator/palette';
 import './SwatchGrid.css';
 
 interface SwatchGridProps {
   activeTokens: PaletteToken[];
-  onChange: (tokens: PaletteToken[]) => void;
+  customColors?: Record<string, string>;
+  onColorChange: (token: PaletteToken, hex: string) => void;
 }
 
-export const SwatchGrid: React.FC<SwatchGridProps> = ({ activeTokens, onChange }) => {
-  const toggleToken = (token: PaletteToken) => {
-    const isActive = activeTokens.includes(token);
-    if (isActive && activeTokens.length <= 1) return; // always keep at least 1
-    const next = isActive
-      ? activeTokens.filter((t) => t !== token)
-      : [...activeTokens, token];
-    onChange(next);
+export const SwatchGrid: React.FC<SwatchGridProps> = ({
+  activeTokens,
+  customColors,
+  onColorChange,
+}) => {
+  const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  const handleSwatchClick = (token: PaletteToken) => {
+    const input = inputRefs.current[token];
+    if (input) {
+      input.click();
+    }
   };
 
   return (
-    <div className="pf-swatch-grid" role="group" aria-label="Active palette tokens">
+    <div className="pf-swatch-grid" role="group" aria-label="11 color palette blocks">
       {ALL_ACTIVE_TOKENS.map((token) => {
-        const isActive = activeTokens.includes(token);
-        const hex = PALETTE[token];
+        const hex = getTokenHex(token, customColors);
         return (
-          <button
+          <div
             key={token}
-            className={`pf-swatch ${isActive ? 'pf-swatch--active' : 'pf-swatch--inactive'}`}
-            style={{ '--swatch-color': hex } as React.CSSProperties}
-            onClick={() => toggleToken(token)}
-            title={`${TOKEN_LABELS[token]} (${hex}) — ${isActive ? 'click to remove' : 'click to add'}`}
-            aria-label={`${TOKEN_LABELS[token]} — ${isActive ? 'active' : 'inactive'}`}
-            aria-pressed={isActive}
-            id={`pf-swatch-${token}`}
-          />
+            className="pf-swatch-wrapper"
+            title={`${TOKEN_LABELS[token]} (${hex}) — Click to change color`}
+          >
+            <button
+              type="button"
+              className="pf-swatch"
+              style={{ '--swatch-color': hex } as React.CSSProperties}
+              onClick={() => handleSwatchClick(token)}
+              aria-label={`${TOKEN_LABELS[token]} (${hex}) — Click to change color`}
+              id={`pf-swatch-${token}`}
+            />
+            <input
+              ref={(el) => { inputRefs.current[token] = el; }}
+              type="color"
+              className="pf-swatch-color-input"
+              value={hex.startsWith('#') && hex.length === 7 ? hex : '#FC4800'}
+              onChange={(e) => onColorChange(token, e.target.value.toUpperCase())}
+            />
+          </div>
         );
       })}
     </div>
