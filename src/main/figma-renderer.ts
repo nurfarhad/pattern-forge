@@ -6,9 +6,8 @@
 // All output: RECTANGLE, TEXT, FRAME, GROUP, or SVG vector (createNodeFromSvg).
 
 import type { SceneSpec, BlockSpec, TextureSpec, LabelSpec, SelectionConstraints } from '../generator/scene-spec';
-import { resolveToken } from '../generator/palette';
+import { resolveToken, getTokenHex, PALETTE } from '../generator/palette';
 import { buildDotGridSvg } from '../generator/texture';
-import { PALETTE } from '../generator/palette';
 import { preloadSceneFonts } from './fonts';
 import { saveRecipe } from './plugin-data';
 import type { GenerationParams, SourceMode } from '../generator/scene-spec';
@@ -108,7 +107,7 @@ function createTextureNode(
   parentY: number,
   customColors?: Record<string, string>,
 ): SceneNode {
-  const hex = PALETTE[tex.ink] || '#1E1E1E';
+  const hex = getTokenHex(tex.ink, customColors);
   const svgString = buildDotGridSvg(tex, hex);
 
   const node = figma.createNodeFromSvg(svgString);

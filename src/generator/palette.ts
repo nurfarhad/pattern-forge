@@ -13,11 +13,11 @@ export const PALETTE: Record<PaletteToken, string> = {
   electricViolet: '#8400FC',   // secondary
   orchidMagenta:  '#B43CD8',   // secondary
   hotPink:        '#FC4890',   // secondary
-  blush:          '#524E56',   // dark slate gray
+  blush:          '#F0D8E4',   // pale pastel accent
   forestGreen:    '#3C9054',   // dark end of signature gradient block
-  sageMint:       '#405040',   // dark moss
+  sageMint:       '#A8C0A8',   // light end of gradient block
   sand:           '#FCE4C0',   // cream/tan bars
-  amber:          '#6B5C20',   // olive amber
+  amber:          '#F0B400',   // rare gold accent
   slateBlueGray:  '#6C9CCC',   // cool block, pairs with orange
   ink:            '#1E1E1E',   // headline type, dots, hairline rules
   paper:          '#FFFFFF',   // canvas background
@@ -87,11 +87,11 @@ export const TOKEN_LABELS: Record<PaletteToken, string> = {
   electricViolet: 'Electric Violet',
   orchidMagenta:  'Orchid Magenta',
   hotPink:        'Hot Pink',
-  blush:          'Slate Gray',
+  blush:          'Blush',
   forestGreen:    'Forest Green',
-  sageMint:       'Dark Moss',
+  sageMint:       'Sage Mint',
   sand:           'Sand',
-  amber:          'Olive Amber',
+  amber:          'Amber',
   slateBlueGray:  'Slate Blue-Gray',
   ink:            'Ink',
   paper:          'Paper',

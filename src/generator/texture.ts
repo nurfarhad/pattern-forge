@@ -1,5 +1,5 @@
 import type { TextureSpec } from './scene-spec';
-import { PALETTE } from './palette';
+import { PALETTE, getTokenHex } from './palette';
 
 export const DEFAULT_DOT_SIZE = 1.5;
 export const MAX_TEXTURE_DOTS_PER_REGION = 2400;
@@ -25,8 +25,9 @@ export function buildDotGridSvg(spec: TextureSpec, resolvedInkHex: string): stri
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${circles.join('')}</svg>`;
 }
 
-export function textureSpecToDataUrl(spec: TextureSpec): string {
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(buildDotGridSvg(spec, PALETTE[spec.ink]))}`;
+export function textureSpecToDataUrl(spec: TextureSpec, customColors?: Record<string, string>): string {
+  const inkHex = getTokenHex(spec.ink, customColors);
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(buildDotGridSvg(spec, inkHex))}`;
 }
 
 export function estimateTextureDotCount(spec: TextureSpec): number {

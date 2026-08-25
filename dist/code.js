@@ -162,16 +162,16 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     // secondary
     hotPink: "#FC4890",
     // secondary
-    blush: "#524E56",
-    // dark slate gray
+    blush: "#F0D8E4",
+    // pale pastel accent
     forestGreen: "#3C9054",
     // dark end of signature gradient block
-    sageMint: "#405040",
-    // dark moss
+    sageMint: "#A8C0A8",
+    // light end of gradient block
     sand: "#FCE4C0",
     // cream/tan bars
-    amber: "#6B5C20",
-    // olive amber
+    amber: "#F0B400",
+    // rare gold accent
     slateBlueGray: "#6C9CCC",
     // cool block, pairs with orange
     ink: "#1E1E1E",
@@ -589,7 +589,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     return rect;
   }
   function createTextureNode(tex, parentX, parentY, customColors) {
-    const hex = PALETTE[tex.ink] || "#1E1E1E";
+    const hex = getTokenHex(tex.ink, customColors);
     const svgString = buildDotGridSvg(tex, hex);
     const node = figma.createNodeFromSvg(svgString);
     node.name = tex.id;

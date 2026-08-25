@@ -18,11 +18,12 @@ interface CanvasPreviewRendererProps {
 
 const textureCache = new Map<string, HTMLImageElement>();
 
-function loadTexture(spec: TextureSpec): Promise<HTMLImageElement> {
+function loadTexture(spec: TextureSpec, customColors?: Record<string, string>): Promise<HTMLImageElement> {
+  const inkHex = (customColors && customColors[spec.ink]) || spec.ink;
   const key = [
     spec.dotSize,
     spec.spacing,
-    spec.ink,
+    inkHex,
     spec.region.width,
     spec.region.height,
   ].join(':');
@@ -36,7 +37,7 @@ function loadTexture(spec: TextureSpec): Promise<HTMLImageElement> {
       resolve(image);
     };
     image.onerror = () => reject(new Error('Texture preview failed to load'));
-    image.src = textureSpecToDataUrl(spec);
+    image.src = textureSpecToDataUrl(spec, customColors);
   });
 }
 
@@ -130,7 +131,7 @@ export const CanvasPreviewRenderer: React.FC<CanvasPreviewRendererProps> = ({ sp
     for (const texture of spec.textureRegions) {
       if (renderId !== renderIdRef.current) return;
       try {
-        const image = await loadTexture(texture);
+        const image = await loadTexture(texture, spec.customColors);
         if (renderId !== renderIdRef.current) return;
         context.save();
         context.globalAlpha = texture.opacity;
@@ -148,7 +149,7 @@ export const CanvasPreviewRenderer: React.FC<CanvasPreviewRendererProps> = ({ sp
     }
 
     context.save();
-    context.fillStyle = tokenToCss('ink');
+    context.fillStyle = tokenToCss('ink', spec.customColors);
     context.textBaseline = 'top';
     for (const label of spec.labels) {
       if (renderId !== renderIdRef.current) return;

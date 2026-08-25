@@ -179,7 +179,7 @@ export const DEFAULT_PARAMS: GenerationParams = {
   density: 6,
   scaleRange: [0.05, 0.45],
   gridStrictness: 0.4,
-  blendModes: ['NORMAL', 'MULTIPLY', 'SCREEN', 'DARKEN'],
+  blendModes: ['MULTIPLY'],
   opacityRange: [0.1, 1],
   textureEnabled: true,
   textureDensity: 2.5,
