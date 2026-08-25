@@ -7101,66 +7101,6 @@ const Button = ({
     children
   }
 );
-const SeedRow = ({ seed, onSeedChange, onShuffle }) => {
-  const [locked, setLocked] = reactExports.useState(false);
-  const handleShuffle = () => {
-    if (!locked) onShuffle();
-  };
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pf-seed-row", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "pf-seed-row__label", htmlFor: "pf-seed-input", children: "Seed" }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pf-seed-row__controls", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        "input",
-        {
-          id: "pf-seed-input",
-          className: "pf-seed-row__input",
-          type: "text",
-          value: seed,
-          onChange: (e) => onSeedChange(e.target.value),
-          placeholder: "e.g. 8842",
-          maxLength: 20
-        }
-      ),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        "button",
-        {
-          className: "pf-seed-row__btn",
-          onClick: handleShuffle,
-          title: locked ? "Seed is locked" : "Shuffle seed",
-          disabled: locked,
-          id: "pf-seed-shuffle",
-          "aria-label": "Shuffle seed",
-          children: /* @__PURE__ */ jsxRuntimeExports.jsxs("svg", { width: "14", height: "14", viewBox: "0 0 16 16", fill: "none", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("rect", { x: "2", y: "2", width: "12", height: "12", rx: "2.5", stroke: "currentColor", strokeWidth: "1.4" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("circle", { cx: "5.5", cy: "5.5", r: "1", fill: "currentColor" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("circle", { cx: "10.5", cy: "10.5", r: "1", fill: "currentColor" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("circle", { cx: "10.5", cy: "5.5", r: "1", fill: "currentColor" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("circle", { cx: "5.5", cy: "10.5", r: "1", fill: "currentColor" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("circle", { cx: "8", cy: "8", r: "1", fill: "currentColor" })
-          ] })
-        }
-      ),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        "button",
-        {
-          className: `pf-seed-row__btn pf-seed-row__lock ${locked ? "pf-seed-row__lock--on" : ""}`,
-          onClick: () => setLocked(!locked),
-          title: locked ? "Unlock seed" : "Lock seed",
-          id: "pf-seed-lock",
-          "aria-label": locked ? "Unlock seed" : "Lock seed",
-          "aria-pressed": locked,
-          children: locked ? /* @__PURE__ */ jsxRuntimeExports.jsxs("svg", { width: "12", height: "14", viewBox: "0 0 12 14", fill: "none", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("rect", { x: "1", y: "6", width: "10", height: "7", rx: "1.5", stroke: "currentColor", strokeWidth: "1.4" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M3 6V4.5a3 3 0 0 1 6 0V6", stroke: "currentColor", strokeWidth: "1.4", strokeLinecap: "round" })
-          ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("svg", { width: "12", height: "14", viewBox: "0 0 12 14", fill: "none", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("rect", { x: "1", y: "6", width: "10", height: "7", rx: "1.5", stroke: "currentColor", strokeWidth: "1.4" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M3 6V4.5a3 3 0 0 1 6 0", stroke: "currentColor", strokeWidth: "1.4", strokeLinecap: "round" })
-          ] })
-        }
-      )
-    ] })
-  ] });
-};
 const PALETTE = {
   signalOrange: "#FC4800",
   // most-used accent
@@ -7684,9 +7624,9 @@ const DEFAULT_PARAMS = {
   scaleRange: [0.05, 0.45],
   gridStrictness: 0.4,
   blendModes: ["MULTIPLY"],
-  opacityRange: [0.55, 1],
+  opacityRange: [0.1, 1],
   textureEnabled: true,
-  textureDensity: 1,
+  textureDensity: 2.5,
   gradientEnabled: true,
   labelsEnabled: true,
   labelSource: "generated",
@@ -8031,9 +7971,9 @@ const BUILT_IN_PRESETS = [
       scaleRange: [0.08, 0.48],
       gridStrictness: 0.3,
       blendModes: ["MULTIPLY"],
-      opacityRange: [0.55, 0.95],
+      opacityRange: [0.1, 1],
       textureEnabled: true,
-      textureDensity: 1.4,
+      textureDensity: 2.5,
       activeTokens: ["signalOrange", "alertRed", "electricViolet", "orchidMagenta", "hotPink"]
     }
   },
@@ -8046,9 +7986,9 @@ const BUILT_IN_PRESETS = [
       scaleRange: [0.04, 0.22],
       gridStrictness: 0.7,
       blendModes: ["NORMAL"],
-      opacityRange: [0.75, 1],
+      opacityRange: [0.1, 1],
       textureEnabled: true,
-      textureDensity: 0.7,
+      textureDensity: 2.5,
       activeTokens: ["signalOrange", "slateBlueGray", "sand", "alertRed"]
     }
   },
@@ -8061,8 +8001,9 @@ const BUILT_IN_PRESETS = [
       scaleRange: [0.15, 0.55],
       gridStrictness: 0.85,
       blendModes: ["DARKEN"],
-      opacityRange: [0.85, 1],
+      opacityRange: [0.1, 1],
       textureEnabled: false,
+      textureDensity: 2.5,
       activeTokens: ["alertRed", "electricViolet", "ink"]
     }
   }
@@ -8214,16 +8155,11 @@ const App = () => {
     params,
     mode,
     currentSpec,
-    history,
     userPresets,
     setParam,
-    shuffleSeed,
     setMode,
     regenerate,
     applyPreset,
-    addToHistory,
-    setHistoryThumbnail,
-    loadFromHistory,
     addUserPreset,
     removeUserPreset,
     loadRecipe,
@@ -8234,7 +8170,6 @@ const App = () => {
   const [activePresetId, setActivePresetId] = reactExports.useState("dense-cluster");
   const [savePresetName, setSavePresetName] = reactExports.useState("");
   const [showSavePreset, setShowSavePreset] = reactExports.useState(false);
-  const [currentHistoryId, setCurrentHistoryId] = reactExports.useState(null);
   const [activeOutputPreset, setActiveOutputPreset] = reactExports.useState("square");
   const liveTimerRef = React$2.useRef(null);
   const isSyncingRecipeRef = React$2.useRef(false);
@@ -8280,11 +8215,6 @@ const App = () => {
   }, [params, constraints == null ? void 0 : constraints.canLiveUpdate, constraints == null ? void 0 : constraints.liveTargetId]);
   const nodeCount = estimateNodeCount(params);
   const nodeCountWarning = nodeCount > 400;
-  const handleRender = reactExports.useCallback((dataUrl) => {
-    if (currentHistoryId) {
-      setHistoryThumbnail(currentHistoryId, dataUrl);
-    }
-  }, [currentHistoryId, setHistoryThumbnail]);
   const applyOutputPreset = (key) => {
     setActiveOutputPreset(key);
     setParam("outputSize", { width: OUTPUT_PRESETS[key].width, height: OUTPUT_PRESETS[key].height });
@@ -8296,22 +8226,11 @@ const App = () => {
       );
       if (!ok2) return;
     }
-    const hid = newHistoryId();
-    setCurrentHistoryId(hid);
-    const entry = {
-      id: hid,
-      seed: params.seed,
-      params,
-      spec: currentSpec,
-      timestamp: Date.now()
-    };
-    addToHistory(entry);
     setInserting(true);
     sendInsert(params, params.seed, constraints);
   };
   const handleRegenerate = () => {
-    const hid = regenerate();
-    setCurrentHistoryId(hid);
+    regenerate();
   };
   const handleSavePreset = () => {
     if (!savePresetName.trim()) return;
@@ -8365,7 +8284,7 @@ const App = () => {
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pf-body", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pf-preview-section", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx(CanvasPreviewRenderer, { spec: currentSpec, onRender: handleRender }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(CanvasPreviewRenderer, { spec: currentSpec }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }, children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "pf-node-count", children: [
             "~",
@@ -8375,14 +8294,6 @@ const App = () => {
           nodeCountWarning && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { fontSize: 10, color: "var(--pf-warning)" }, children: "⚠ High node count" })
         ] })
       ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(Panel, { title: "Seed", id: "pf-panel-seed", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
-        SeedRow,
-        {
-          seed: params.seed,
-          onSeedChange: (s) => setParam("seed", s),
-          onShuffle: shuffleSeed
-        }
-      ) }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs(Panel, { title: "Palette", id: "pf-panel-palette", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx(
           SwatchGrid,
@@ -8454,37 +8365,6 @@ const App = () => {
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs(Panel, { title: "Blend & Texture", id: "pf-panel-blend", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 10, color: "var(--pf-text-secondary)", marginBottom: 4, fontWeight: 500 }, children: "Opacity Range" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pf-range-row", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              Slider,
-              {
-                id: "pf-slider-opacity-min",
-                label: "Min",
-                value: params.opacityRange[0],
-                min: 0.1,
-                max: params.opacityRange[1] - 0.05,
-                step: 0.05,
-                decimals: 2,
-                onChange: (v2) => setParam("opacityRange", [v2, params.opacityRange[1]])
-              }
-            ),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              Slider,
-              {
-                id: "pf-slider-opacity-max",
-                label: "Max",
-                value: params.opacityRange[1],
-                min: params.opacityRange[0] + 0.05,
-                max: 1,
-                step: 0.05,
-                decimals: 2,
-                onChange: (v2) => setParam("opacityRange", [params.opacityRange[0], v2])
-              }
-            )
-          ] })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 10, color: "var(--pf-text-secondary)", marginBottom: 4, fontWeight: 500 }, children: "Blend Mode" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", gap: 4, flexWrap: "wrap" }, children: ["NORMAL", "MULTIPLY", "SCREEN", "DARKEN"].map((bm) => {
             const isActive = params.blendModes.includes(bm);
@@ -8520,20 +8400,6 @@ const App = () => {
             /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pf-toggle__slider" })
           ] })
         ] }),
-        params.textureEnabled && /* @__PURE__ */ jsxRuntimeExports.jsx(
-          Slider,
-          {
-            id: "pf-slider-texture-density",
-            label: "Texture Density",
-            value: params.textureDensity,
-            min: 0.4,
-            max: 2.5,
-            step: 0.1,
-            decimals: 1,
-            unit: "x",
-            onChange: (v2) => setParam("textureDensity", v2)
-          }
-        ),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pf-toggle-row", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pf-toggle-row__label", children: "Gradient Block" }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "pf-toggle", children: [
@@ -8637,18 +8503,9 @@ const App = () => {
               onClick: () => setActiveOutputPreset("custom"),
               children: "Custom"
             }
-          ),
-          mode !== "none" && /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "button",
-            {
-              id: "pf-size-selection",
-              className: `pf-size-chip ${activeOutputPreset === "selection" ? "pf-size-chip--active" : ""}`,
-              onClick: () => setActiveOutputPreset("selection"),
-              children: "Fill Selection"
-            }
           )
         ] }),
-        activeOutputPreset === "custom" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pf-range-row", children: [
+        activeOutputPreset === "custom" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pf-output-custom", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 10, color: "var(--pf-text-secondary)", marginBottom: 4 }, children: "W (px)" }),
             /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -8732,23 +8589,7 @@ const App = () => {
           /* @__PURE__ */ jsxRuntimeExports.jsx(Button, { size: "sm", variant: "primary", onClick: handleSavePreset, id: "pf-save-preset-confirm", children: "Save" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx(Button, { size: "sm", variant: "ghost", onClick: () => setShowSavePreset(false), children: "✕" })
         ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx(Button, { size: "sm", variant: "ghost", onClick: () => setShowSavePreset(true), id: "pf-save-preset-btn", children: "+ Save current as preset" })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(Panel, { title: "Recent Generations", defaultOpen: false, id: "pf-panel-history", children: history.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "pf-help", children: "No generations yet this session." }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "pf-history-strip", children: history.map((entry) => /* @__PURE__ */ jsxRuntimeExports.jsx(
-        "div",
-        {
-          className: "pf-history-thumb",
-          title: `Seed: ${entry.seed}`,
-          onClick: () => loadFromHistory(entry),
-          role: "button",
-          tabIndex: 0,
-          onKeyDown: (e) => {
-            if (e.key === "Enter") loadFromHistory(entry);
-          },
-          id: `pf-history-${entry.id}`,
-          children: entry.thumbnailDataUrl ? /* @__PURE__ */ jsxRuntimeExports.jsx("img", { src: entry.thumbnailDataUrl, alt: `Generation seed ${entry.seed}` }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "pf-history-thumb__placeholder", children: entry.seed })
-        },
-        entry.id
-      )) }) })
+      ] })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("footer", { className: "pf-footer", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -9397,78 +9238,6 @@ body {
 }
 .pf-btn--danger:hover:not(:disabled) {
   background: rgba(252,48,24,0.08);
-}
-.pf-seed-row {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.pf-seed-row__label {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--pf-text-secondary);
-}
-
-.pf-seed-row__controls {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-}
-
-.pf-seed-row__input {
-  flex: 1;
-  height: 28px;
-  background: var(--pf-input-bg);
-  border: 1px solid var(--pf-border);
-  border-radius: 4px;
-  padding: 0 8px;
-  font-size: 12px;
-  font-family: 'SF Mono', 'Fira Code', monospace;
-  color: var(--pf-text-primary);
-  outline: none;
-  transition: border-color 0.15s;
-}
-
-.pf-seed-row__input:focus {
-  border-color: var(--pf-accent);
-}
-
-.pf-seed-row__btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 4px;
-  border: 1px solid var(--pf-border);
-  background: var(--pf-surface-2);
-  color: var(--pf-text-secondary);
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-  flex-shrink: 0;
-}
-
-.pf-seed-row__btn:hover:not(:disabled) {
-  background: var(--pf-hover);
-  color: var(--pf-text-primary);
-}
-
-.pf-seed-row__btn:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-
-.pf-seed-row__lock--on {
-  background: var(--pf-accent);
-  border-color: var(--pf-accent);
-  color: #fff;
-}
-
-.pf-seed-row__lock--on:hover {
-  background: var(--pf-accent-hover) !important;
 }
 .pf-swatch-grid {
   display: flex;

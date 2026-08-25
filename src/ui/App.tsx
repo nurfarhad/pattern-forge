@@ -1,15 +1,12 @@
 // ─── Pattern Forge — Main UI App ─────────────────────────────────────────────
-// Full plugin control panel per PRD §10.
-// Phase 1: Insert button is present but disabled (no main thread yet).
-// Phase 2+: Bridge is wired in.
+// Streamlined plugin control panel with live canvas editing and instant preview.
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import './App.css';
 
 import { Slider } from './components/Slider';
 import { Panel } from './components/Panel';
 import { Button } from './components/Button';
-import { SeedRow } from './components/SeedRow';
 import { SwatchGrid } from './components/SwatchGrid';
 import { PresetChip } from './components/PresetChip';
 import { CanvasPreviewRenderer } from './preview/CanvasPreviewRenderer';
@@ -17,8 +14,6 @@ import { CanvasPreviewRenderer } from './preview/CanvasPreviewRenderer';
 import {
   useParamsStore,
   BUILT_IN_PRESETS,
-  newHistoryId,
-  type HistoryEntry,
 } from './state/params';
 import type { BlendMode, PaletteToken, SourceMode } from '@generator/scene-spec';
 import { OUTPUT_PRESETS, type OutputPresetKey } from '@generator/scene-spec';
@@ -32,17 +27,15 @@ const OUTPUT_PRESET_KEYS = Object.keys(OUTPUT_PRESETS) as OutputPresetKey[];
 export const App: React.FC = () => {
   const store = useParamsStore();
   const {
-    params, mode, currentSpec, history, userPresets,
-    setParam, shuffleSeed, setMode, regenerate,
-    applyPreset, addToHistory, setHistoryThumbnail,
-    loadFromHistory, addUserPreset, removeUserPreset,
+    params, mode, currentSpec, userPresets,
+    setParam, setMode, regenerate,
+    applyPreset, addUserPreset, removeUserPreset,
     loadRecipe, setInserting, isInserting, constraints,
   } = store;
 
   const [activePresetId, setActivePresetId] = useState<string | null>('dense-cluster');
   const [savePresetName, setSavePresetName] = useState('');
   const [showSavePreset, setShowSavePreset] = useState(false);
-  const [currentHistoryId, setCurrentHistoryId] = useState<string | null>(null);
   const [activeOutputPreset, setActiveOutputPreset] = useState<OutputPresetKey | 'custom' | 'selection'>('square');
 
   const liveTimerRef = React.useRef<number | null>(null);
@@ -98,13 +91,6 @@ export const App: React.FC = () => {
   const nodeCount = estimateNodeCount(params);
   const nodeCountWarning = nodeCount > 400;
 
-  // ── Thumbnail callback from preview ──────────────────────────────────────
-  const handleRender = useCallback((dataUrl: string) => {
-    if (currentHistoryId) {
-      setHistoryThumbnail(currentHistoryId, dataUrl);
-    }
-  }, [currentHistoryId, setHistoryThumbnail]);
-
   // ── Output size preset ────────────────────────────────────────────────────
   const applyOutputPreset = (key: OutputPresetKey) => {
     setActiveOutputPreset(key);
@@ -114,31 +100,19 @@ export const App: React.FC = () => {
   // ── Insert to canvas ──────────────────────────────────────────────────────
   const handleInsert = () => {
     if (nodeCountWarning) {
-      // Warn but don't block — user can proceed
       const ok = window.confirm(
         `This will generate ~${nodeCount} nodes. Large generations may be slow. Proceed?`
       );
       if (!ok) return;
     }
 
-    const hid = newHistoryId();
-    setCurrentHistoryId(hid);
-    const entry: HistoryEntry = {
-      id: hid,
-      seed: params.seed,
-      params,
-      spec: currentSpec,
-      timestamp: Date.now(),
-    };
-    addToHistory(entry);
     setInserting(true);
     sendInsert(params, params.seed, constraints);
   };
 
   // ── Regenerate (new seed, keep locked params) ─────────────────────────────
   const handleRegenerate = () => {
-    const hid = regenerate();
-    setCurrentHistoryId(hid);
+    regenerate();
   };
 
   // ── Save preset ──────────────────────────────────────────────────────────
@@ -206,7 +180,7 @@ export const App: React.FC = () => {
 
         {/* 1. Live Preview */}
         <div className="pf-preview-section">
-          <CanvasPreviewRenderer spec={currentSpec} onRender={handleRender} />
+          <CanvasPreviewRenderer spec={currentSpec} />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
             <span className="pf-node-count">~{nodeCount} nodes</span>
             {nodeCountWarning && (
@@ -215,16 +189,7 @@ export const App: React.FC = () => {
           </div>
         </div>
 
-        {/* 2. Seed */}
-        <Panel title="Seed" id="pf-panel-seed">
-          <SeedRow
-            seed={params.seed}
-            onSeedChange={(s) => setParam('seed', s)}
-            onShuffle={shuffleSeed}
-          />
-        </Panel>
-
-        {/* 3. Palette */}
+        {/* 2. Palette */}
         <Panel title="Palette" id="pf-panel-palette">
           <SwatchGrid
             activeTokens={params.activeTokens}
@@ -233,7 +198,7 @@ export const App: React.FC = () => {
           <p className="pf-help">Click swatches to toggle colors in/out of rotation.</p>
         </Panel>
 
-        {/* 4. Composition */}
+        {/* 3. Composition */}
         <Panel title="Composition" id="pf-panel-composition">
           <Slider
             id="pf-slider-density"
@@ -272,30 +237,8 @@ export const App: React.FC = () => {
           </div>
         </Panel>
 
-        {/* 5. Blend & Texture */}
+        {/* 4. Blend & Texture */}
         <Panel title="Blend & Texture" id="pf-panel-blend">
-          <div>
-            <div style={{ fontSize: 10, color: 'var(--pf-text-secondary)', marginBottom: 4, fontWeight: 500 }}>
-              Opacity Range
-            </div>
-            <div className="pf-range-row">
-              <Slider
-                id="pf-slider-opacity-min"
-                label="Min"
-                value={params.opacityRange[0]}
-                min={0.1} max={params.opacityRange[1] - 0.05} step={0.05} decimals={2}
-                onChange={(v) => setParam('opacityRange', [v, params.opacityRange[1]])}
-              />
-              <Slider
-                id="pf-slider-opacity-max"
-                label="Max"
-                value={params.opacityRange[1]}
-                min={params.opacityRange[0] + 0.05} max={1} step={0.05} decimals={2}
-                onChange={(v) => setParam('opacityRange', [params.opacityRange[0], v])}
-              />
-            </div>
-          </div>
-
           <div>
             <div style={{ fontSize: 10, color: 'var(--pf-text-secondary)', marginBottom: 4, fontWeight: 500 }}>
               Blend Mode
@@ -337,16 +280,6 @@ export const App: React.FC = () => {
             </label>
           </div>
 
-          {params.textureEnabled && (
-            <Slider
-              id="pf-slider-texture-density"
-              label="Texture Density"
-              value={params.textureDensity}
-              min={0.4} max={2.5} step={0.1} decimals={1} unit="x"
-              onChange={(v) => setParam('textureDensity', v)}
-            />
-          )}
-
           <div className="pf-toggle-row">
             <span className="pf-toggle-row__label">Gradient Block</span>
             <label className="pf-toggle">
@@ -361,7 +294,7 @@ export const App: React.FC = () => {
           </div>
         </Panel>
 
-        {/* 6. Labels */}
+        {/* 5. Labels */}
         <Panel title="Labels" id="pf-panel-labels">
           <div className="pf-toggle-row">
             <span className="pf-toggle-row__label">Data-readout Labels</span>
@@ -428,7 +361,7 @@ export const App: React.FC = () => {
           )}
         </Panel>
 
-        {/* 7. Output Size */}
+        {/* 6. Output Size */}
         <Panel title="Output Size" id="pf-panel-output">
           <div className="pf-size-presets">
             {OUTPUT_PRESET_KEYS.map((key) => (
@@ -448,19 +381,10 @@ export const App: React.FC = () => {
             >
               Custom
             </button>
-            {mode !== 'none' && (
-              <button
-                id="pf-size-selection"
-                className={`pf-size-chip ${activeOutputPreset === 'selection' ? 'pf-size-chip--active' : ''}`}
-                onClick={() => setActiveOutputPreset('selection')}
-              >
-                Fill Selection
-              </button>
-            )}
           </div>
 
           {activeOutputPreset === 'custom' && (
-            <div className="pf-range-row">
+            <div className="pf-output-custom">
               <div>
                 <div style={{ fontSize: 10, color: 'var(--pf-text-secondary)', marginBottom: 4 }}>W (px)</div>
                 <input
@@ -487,7 +411,7 @@ export const App: React.FC = () => {
           )}
         </Panel>
 
-        {/* 8. Presets */}
+        {/* 7. Presets */}
         <Panel title="Presets" defaultOpen={false} id="pf-panel-presets">
           <div className="pf-presets-row">
             {BUILT_IN_PRESETS.map((preset) => (
@@ -537,34 +461,6 @@ export const App: React.FC = () => {
             <Button size="sm" variant="ghost" onClick={() => setShowSavePreset(true)} id="pf-save-preset-btn">
               + Save current as preset
             </Button>
-          )}
-        </Panel>
-
-        {/* 9. History */}
-        <Panel title="Recent Generations" defaultOpen={false} id="pf-panel-history">
-          {history.length === 0 ? (
-            <p className="pf-help">No generations yet this session.</p>
-          ) : (
-            <div className="pf-history-strip">
-              {history.map((entry) => (
-                <div
-                  key={entry.id}
-                  className="pf-history-thumb"
-                  title={`Seed: ${entry.seed}`}
-                  onClick={() => loadFromHistory(entry)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => { if (e.key === 'Enter') loadFromHistory(entry); }}
-                  id={`pf-history-${entry.id}`}
-                >
-                  {entry.thumbnailDataUrl ? (
-                    <img src={entry.thumbnailDataUrl} alt={`Generation seed ${entry.seed}`} />
-                  ) : (
-                    <div className="pf-history-thumb__placeholder">{entry.seed}</div>
-                  )}
-                </div>
-              ))}
-            </div>
           )}
         </Panel>
 
