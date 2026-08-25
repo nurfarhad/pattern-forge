@@ -98,6 +98,9 @@ export type SelectionConstraints = {
     isRectangular: boolean;
     nodeId: string;
   }[];
+  canLiveUpdate?: boolean;
+  liveTargetId?: string;
+  liveTargetName?: string;
 };
 
 export type SourceMode = SelectionConstraints['mode'];
@@ -108,6 +111,13 @@ export interface InsertMessage {
   params: GenerationParams;
   seed: string;
   constraints?: SelectionConstraints;
+}
+
+export interface LiveUpdateMessage {
+  type: 'LIVE_UPDATE';
+  params: GenerationParams;
+  seed: string;
+  targetFrameId: string;
 }
 
 export interface RequestSelectionInfoMessage {
@@ -130,7 +140,7 @@ export interface LoadedRecipeMessage {
   seed: string;
 }
 
-export type UIToMainMessage = InsertMessage | RequestSelectionInfoMessage;
+export type UIToMainMessage = InsertMessage | LiveUpdateMessage | RequestSelectionInfoMessage;
 export type MainToUIMessage = SelectionInfoMessage | InsertCompleteMessage | LoadedRecipeMessage;
 
 export interface Recipe {

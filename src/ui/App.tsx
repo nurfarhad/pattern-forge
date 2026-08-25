@@ -23,7 +23,7 @@ import {
 import type { BlendMode, PaletteToken, SourceMode } from '@generator/scene-spec';
 import { OUTPUT_PRESETS, type OutputPresetKey } from '@generator/scene-spec';
 import { estimateNodeCount } from '@generator/layout';
-import { sendInsert, sendRequestSelectionInfo, onPluginMessage } from './bridge';
+import { sendInsert, sendLiveUpdate, sendRequestSelectionInfo, onPluginMessage } from './bridge';
 
 // ─── App ─────────────────────────────────────────────────────────────────────
 
@@ -45,6 +45,10 @@ export const App: React.FC = () => {
   const [currentHistoryId, setCurrentHistoryId] = useState<string | null>(null);
   const [activeOutputPreset, setActiveOutputPreset] = useState<OutputPresetKey | 'custom' | 'selection'>('square');
 
+  const liveTimerRef = React.useRef<number | null>(null);
+  const isSyncingRecipeRef = React.useRef(false);
+  const isFirstRender = React.useRef(true);
+
   // ── Wire up bridge (receives messages from main thread) ──────────────────
   useEffect(() => {
     const unsub = onPluginMessage((msg) => {
@@ -53,7 +57,11 @@ export const App: React.FC = () => {
       } else if (msg.type === 'INSERT_COMPLETE') {
         setInserting(false);
       } else if (msg.type === 'LOADED_RECIPE') {
+        isSyncingRecipeRef.current = true;
         loadRecipe(msg.params, msg.seed);
+        setTimeout(() => {
+          isSyncingRecipeRef.current = false;
+        }, 150);
       }
     });
 
@@ -61,6 +69,30 @@ export const App: React.FC = () => {
     sendRequestSelectionInfo();
     return unsub;
   }, []);
+
+  // ── Debounced live update push to Figma canvas ───────────────────────────
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    if (isSyncingRecipeRef.current) {
+      return;
+    }
+    if (constraints?.canLiveUpdate && constraints.liveTargetId) {
+      if (liveTimerRef.current) {
+        window.clearTimeout(liveTimerRef.current);
+      }
+      liveTimerRef.current = window.setTimeout(() => {
+        sendLiveUpdate(params, params.seed, constraints.liveTargetId!);
+      }, 90);
+    }
+    return () => {
+      if (liveTimerRef.current) {
+        window.clearTimeout(liveTimerRef.current);
+      }
+    };
+  }, [params, constraints?.canLiveUpdate, constraints?.liveTargetId]);
 
   // ── Estimated node count ─────────────────────────────────────────────────
   const nodeCount = estimateNodeCount(params);
@@ -122,20 +154,26 @@ export const App: React.FC = () => {
     setShowSavePreset(false);
   };
 
-  // ── Mode badge ────────────────────────────────────────────────────────────
-  const modeBadgeClass = {
-    none: 'pf-header__mode-badge--random',
-    fill: 'pf-header__mode-badge--fill',
-    mask: 'pf-header__mode-badge--mask',
-    batch: 'pf-header__mode-badge--batch',
-  }[mode];
+  // ── Mode badge & Live status indicator ───────────────────────────────────
+  const isLiveArmed = Boolean(constraints?.canLiveUpdate && constraints.liveTargetId);
 
-  const modeLabel = {
-    none: 'Random',
-    fill: 'Fill Selection',
-    mask: 'Mask Mode',
-    batch: `Batch (${constraints?.shapes.length ?? 0})`,
-  }[mode];
+  const modeBadgeClass = isLiveArmed
+    ? 'pf-header__mode-badge--live'
+    : {
+        none: 'pf-header__mode-badge--random',
+        fill: 'pf-header__mode-badge--fill',
+        mask: 'pf-header__mode-badge--mask',
+        batch: 'pf-header__mode-badge--batch',
+      }[mode];
+
+  const modeLabel = isLiveArmed
+    ? '● Live'
+    : {
+        none: 'Random',
+        fill: 'Fill Selection',
+        mask: 'Mask Mode',
+        batch: `Batch (${constraints?.shapes.length ?? 0})`,
+      }[mode];
 
   return (
     <div className="pf-app">
@@ -145,7 +183,9 @@ export const App: React.FC = () => {
           <span className="pf-header__wordmark">Pattern<span>Forge</span></span>
         </div>
         <div className="pf-header__mode-control">
-          <span className={`pf-header__mode-badge ${modeBadgeClass}`}>{modeLabel}</span>
+          <span className={`pf-header__mode-badge ${modeBadgeClass}`} title={isLiveArmed ? `Live updating frame "${constraints?.liveTargetName || ''}"` : undefined}>
+            {modeLabel}
+          </span>
           <select
             className="pf-header__mode-select"
             value={mode}

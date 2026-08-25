@@ -3,6 +3,7 @@
 // PRD §5.3 / FR-3/4/5.
 
 import type { SelectionConstraints, ShapeConstraint, SourceMode } from '../generator/scene-spec';
+import { hasRecipe } from './plugin-data';
 
 /** Node types that are treated as rectangular (no masking needed) */
 const RECTANGULAR_TYPES = new Set<SceneNode['type']>([
@@ -29,7 +30,7 @@ function getGeometry(node: SceneNode): { x: number; y: number; width: number; he
  * Read the current Figma selection and return SelectionConstraints.
  *
  * - 0 selected → mode 'none'
- * - 1 rectangular → mode 'fill', isRectangular: true
+ * - 1 rectangular → mode 'fill', isRectangular: true (canLiveUpdate if hasRecipe)
  * - 1 non-rectangular → mode 'fill', isRectangular: false (isMask in renderer)
  * - N selected → mode 'batch'
  */
@@ -37,13 +38,15 @@ export function readSelection(): SelectionConstraints {
   const selection = figma.currentPage.selection;
 
   if (selection.length === 0) {
-    return { mode: 'none', shapes: [] };
+    return { mode: 'none', shapes: [], canLiveUpdate: false };
   }
 
   if (selection.length === 1) {
     const node = selection[0];
     const geo = getGeometry(node);
-    if (!geo) return { mode: 'none', shapes: [] };
+    if (!geo) return { mode: 'none', shapes: [], canLiveUpdate: false };
+
+    const isLiveTarget = node.type === 'FRAME' && hasRecipe(node);
 
     const shape: ShapeConstraint = {
       nodeId: node.id,
@@ -54,7 +57,13 @@ export function readSelection(): SelectionConstraints {
       isRectangular: isRectangular(node),
     };
 
-    return { mode: 'fill', shapes: [shape] };
+    return {
+      mode: 'fill',
+      shapes: [shape],
+      canLiveUpdate: isLiveTarget,
+      liveTargetId: isLiveTarget ? node.id : undefined,
+      liveTargetName: isLiveTarget ? node.name : undefined,
+    };
   }
 
   // Multiple selected → batch mode
@@ -72,5 +81,5 @@ export function readSelection(): SelectionConstraints {
     });
   }
 
-  return { mode: 'batch', shapes };
+  return { mode: 'batch', shapes, canLiveUpdate: false };
 }

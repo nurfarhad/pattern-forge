@@ -8189,6 +8189,10 @@ function sendInsert(params, seed, constraints) {
   const msg = { type: "INSERT", params, seed, constraints };
   parent.postMessage({ pluginMessage: msg }, "*");
 }
+function sendLiveUpdate(params, seed, targetFrameId) {
+  const msg = { type: "LIVE_UPDATE", params, seed, targetFrameId };
+  parent.postMessage({ pluginMessage: msg }, "*");
+}
 function sendRequestSelectionInfo() {
   const msg = { type: "REQUEST_SELECTION_INFO" };
   parent.postMessage({ pluginMessage: msg }, "*");
@@ -8232,6 +8236,9 @@ const App = () => {
   const [showSavePreset, setShowSavePreset] = reactExports.useState(false);
   const [currentHistoryId, setCurrentHistoryId] = reactExports.useState(null);
   const [activeOutputPreset, setActiveOutputPreset] = reactExports.useState("square");
+  const liveTimerRef = React$2.useRef(null);
+  const isSyncingRecipeRef = React$2.useRef(false);
+  const isFirstRender = React$2.useRef(true);
   reactExports.useEffect(() => {
     const unsub = onPluginMessage((msg) => {
       if (msg.type === "SELECTION_INFO") {
@@ -8239,12 +8246,38 @@ const App = () => {
       } else if (msg.type === "INSERT_COMPLETE") {
         setInserting(false);
       } else if (msg.type === "LOADED_RECIPE") {
+        isSyncingRecipeRef.current = true;
         loadRecipe(msg.params, msg.seed);
+        setTimeout(() => {
+          isSyncingRecipeRef.current = false;
+        }, 150);
       }
     });
     sendRequestSelectionInfo();
     return unsub;
   }, []);
+  reactExports.useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    if (isSyncingRecipeRef.current) {
+      return;
+    }
+    if ((constraints == null ? void 0 : constraints.canLiveUpdate) && constraints.liveTargetId) {
+      if (liveTimerRef.current) {
+        window.clearTimeout(liveTimerRef.current);
+      }
+      liveTimerRef.current = window.setTimeout(() => {
+        sendLiveUpdate(params, params.seed, constraints.liveTargetId);
+      }, 90);
+    }
+    return () => {
+      if (liveTimerRef.current) {
+        window.clearTimeout(liveTimerRef.current);
+      }
+    };
+  }, [params, constraints == null ? void 0 : constraints.canLiveUpdate, constraints == null ? void 0 : constraints.liveTargetId]);
   const nodeCount = estimateNodeCount(params);
   const nodeCountWarning = nodeCount > 400;
   const handleRender = reactExports.useCallback((dataUrl) => {
@@ -8291,13 +8324,14 @@ const App = () => {
     setSavePresetName("");
     setShowSavePreset(false);
   };
-  const modeBadgeClass = {
+  const isLiveArmed = Boolean((constraints == null ? void 0 : constraints.canLiveUpdate) && constraints.liveTargetId);
+  const modeBadgeClass = isLiveArmed ? "pf-header__mode-badge--live" : {
     none: "pf-header__mode-badge--random",
     fill: "pf-header__mode-badge--fill",
     mask: "pf-header__mode-badge--mask",
     batch: "pf-header__mode-badge--batch"
   }[mode];
-  const modeLabel = {
+  const modeLabel = isLiveArmed ? "● Live" : {
     none: "Random",
     fill: "Fill Selection",
     mask: "Mask Mode",
@@ -8310,7 +8344,7 @@ const App = () => {
         /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Forge" })
       ] }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pf-header__mode-control", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `pf-header__mode-badge ${modeBadgeClass}`, children: modeLabel }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `pf-header__mode-badge ${modeBadgeClass}`, title: isLiveArmed ? `Live updating frame "${(constraints == null ? void 0 : constraints.liveTargetName) || ""}"` : void 0, children: modeLabel }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs(
           "select",
           {
@@ -8869,6 +8903,16 @@ body {
 .pf-header__mode-badge--mask   { background: rgba(132,0,252,0.1);   color: #8400FC; border-color: rgba(132,0,252,0.25); }
 .pf-header__mode-badge--batch  { background: rgba(240,180,0,0.12);  color: #b08800; border-color: rgba(240,180,0,0.25); }
 .pf-header__mode-badge--random { background: rgba(252,72,0,0.1);    color: var(--pf-accent); border-color: rgba(252,72,0,0.25); }
+.pf-header__mode-badge--live   { background: rgba(60,144,84,0.18);  color: #2b7a42; border-color: rgba(60,144,84,0.45); font-weight: 700; box-shadow: 0 0 6px rgba(60,144,84,0.2); }
+
+@media (prefers-color-scheme: dark) {
+  .pf-header__mode-badge--live {
+    background: rgba(60,144,84,0.25);
+    color: #4ade80;
+    border-color: rgba(74,222,128,0.45);
+    box-shadow: 0 0 6px rgba(74,222,128,0.2);
+  }
+}
 
 .pf-header__mode-control {
   display: flex;

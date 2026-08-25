@@ -320,3 +320,78 @@ export async function renderBatchToFigma(
   figma.notify(`Pattern Forge: inserted ${frames.length} patterns ✓`, { timeout: 2500 });
   return frames;
 }
+
+/**
+ * Render a SceneSpec in-place into an existing target FrameNode (Live Canvas Editing).
+ * Swaps generated children into targetFrame without recreating the frame or disturbing selection/position.
+ */
+export async function renderInPlace(
+  targetFrame: FrameNode,
+  spec: SceneSpec,
+  params: GenerationParams,
+): Promise<void> {
+  const fontName = await preloadSceneFonts(params.displayFont || 'Times New Roman');
+
+  const bb = targetFrame.absoluteBoundingBox;
+  const parentX = bb ? bb.x : targetFrame.x;
+  const parentY = bb ? bb.y : targetFrame.y;
+
+  // Create temporary container on currentPage to assemble new groups
+  const tempFrame = figma.createFrame();
+  tempFrame.x = parentX;
+  tempFrame.y = parentY;
+  tempFrame.resize(Math.max(1, spec.canvas.width), Math.max(1, spec.canvas.height));
+  figma.currentPage.appendChild(tempFrame);
+
+  try {
+    // ── Blocks group ────────────────────────────────────────────────────────
+    const allBlocksToRender = [
+      ...spec.blocks,
+      ...(spec.gradientBlock ? [spec.gradientBlock] : []),
+    ];
+    if (allBlocksToRender.length > 0) {
+      const blockNodes: RectangleNode[] = allBlocksToRender.map((block) =>
+        createBlockNode(block, parentX, parentY)
+      );
+      const blocksGroup = figma.group(blockNodes, tempFrame);
+      blocksGroup.name = 'Blocks';
+    }
+
+    // ── Texture group ────────────────────────────────────────────────────────
+    if (spec.textureRegions.length > 0) {
+      const texNodes: SceneNode[] = spec.textureRegions.map((tex) =>
+        createTextureNode(tex, parentX, parentY)
+      );
+      const texGroup = figma.group(texNodes, tempFrame);
+      texGroup.name = 'Texture';
+    }
+
+    // ── Labels group ─────────────────────────────────────────────────────────
+    if (spec.labels.length > 0) {
+      const labelNodes = await Promise.all(
+        spec.labels.map((label) => createLabelNode(label, parentX, parentY, fontName))
+      );
+      const labelsGroup = figma.group(labelNodes, tempFrame);
+      labelsGroup.name = 'Labels';
+    }
+
+    // ── Swap children into targetFrame ─────────────────────────────────────
+    const previousChildren = [...targetFrame.children];
+    for (const child of previousChildren) {
+      child.remove();
+    }
+    for (const child of [...tempFrame.children]) {
+      targetFrame.appendChild(child);
+    }
+
+    targetFrame.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
+    targetFrame.clipsContent = true;
+
+    // ── Re-stamp recipe for subsequent re-edits ────────────────────────────
+    saveRecipe(targetFrame, params, spec.seed, 'fill');
+  } finally {
+    if (!tempFrame.removed) {
+      tempFrame.remove();
+    }
+  }
+}

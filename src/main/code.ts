@@ -3,10 +3,15 @@
 // All Figma API calls happen here (plugin sandbox / main thread).
 // The UI iframe communicates via postMessage (bridge.ts on the UI side).
 
-import type { UIToMainMessage, MainToUIMessage, InsertMessage } from '../generator/scene-spec';
+import type {
+  UIToMainMessage,
+  MainToUIMessage,
+  InsertMessage,
+  LiveUpdateMessage,
+} from '../generator/scene-spec';
 import { generateScene, generateBatch } from '../generator/generate';
 import { readSelection } from './selection-reader';
-import { renderToFigma, renderBatchToFigma } from './figma-renderer';
+import { renderToFigma, renderBatchToFigma, renderInPlace } from './figma-renderer';
 import { loadRecipe, hasRecipe } from './plugin-data';
 
 // ─── Show UI ─────────────────────────────────────────────────────────────────
@@ -53,6 +58,33 @@ figma.ui.onmessage = async (rawMsg: UIToMainMessage) => {
 
     case 'REQUEST_SELECTION_INFO': {
       sendSelectionInfo();
+      break;
+    }
+
+    case 'LIVE_UPDATE': {
+      const msg = rawMsg as LiveUpdateMessage;
+      const { params, seed, targetFrameId } = msg;
+      try {
+        const target = figma.getNodeById(targetFrameId);
+        if (target && target.type === 'FRAME') {
+          const paramsWithSeed = { ...params, seed };
+          const { spec } = generateScene(paramsWithSeed, {
+            mode: 'fill',
+            shapes: [{
+              nodeId: target.id,
+              x: target.x,
+              y: target.y,
+              width: target.width,
+              height: target.height,
+              isRectangular: true,
+            }],
+          });
+          await renderInPlace(target, spec, paramsWithSeed);
+        }
+      } catch (err) {
+        // Silently ignore or notify if needed; live update shouldn't disrupt UI on intermediate frame
+        console.warn('Pattern Forge live update error:', err);
+      }
       break;
     }
 

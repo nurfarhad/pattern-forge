@@ -16,6 +16,11 @@ export function sendInsert(params: GenerationParams, seed: string, constraints?:
   parent.postMessage({ pluginMessage: msg }, '*');
 }
 
+export function sendLiveUpdate(params: GenerationParams, seed: string, targetFrameId: string): void {
+  const msg: UIToMainMessage = { type: 'LIVE_UPDATE', params, seed, targetFrameId };
+  parent.postMessage({ pluginMessage: msg }, '*');
+}
+
 export function sendRequestSelectionInfo(): void {
   const msg: UIToMainMessage = { type: 'REQUEST_SELECTION_INFO' };
   parent.postMessage({ pluginMessage: msg }, '*');

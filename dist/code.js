@@ -427,6 +427,26 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
       return generateScene(derivedParams, { mode: "fill", shapes: [shape] });
     });
   }
+  const RECIPE_KEY = "patternForgeRecipe";
+  const RECIPE_VERSION = 1;
+  function saveRecipe(frame, params, seed, mode) {
+    const recipe = { seed, params, mode, version: RECIPE_VERSION };
+    frame.setPluginData(RECIPE_KEY, JSON.stringify(recipe));
+  }
+  function loadRecipe(node) {
+    try {
+      const raw = node.getPluginData(RECIPE_KEY);
+      if (!raw) return null;
+      const recipe = JSON.parse(raw);
+      if (recipe.version !== RECIPE_VERSION) return null;
+      return recipe;
+    } catch (e) {
+      return null;
+    }
+  }
+  function hasRecipe(node) {
+    return !!node.getPluginData(RECIPE_KEY);
+  }
   const RECTANGULAR_TYPES = /* @__PURE__ */ new Set([
     "RECTANGLE",
     "FRAME",
@@ -445,12 +465,13 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
   function readSelection() {
     const selection = figma.currentPage.selection;
     if (selection.length === 0) {
-      return { mode: "none", shapes: [] };
+      return { mode: "none", shapes: [], canLiveUpdate: false };
     }
     if (selection.length === 1) {
       const node = selection[0];
       const geo = getGeometry(node);
-      if (!geo) return { mode: "none", shapes: [] };
+      if (!geo) return { mode: "none", shapes: [], canLiveUpdate: false };
+      const isLiveTarget = node.type === "FRAME" && hasRecipe(node);
       const shape = {
         nodeId: node.id,
         x: geo.x,
@@ -459,7 +480,13 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
         height: geo.height,
         isRectangular: isRectangular(node)
       };
-      return { mode: "fill", shapes: [shape] };
+      return {
+        mode: "fill",
+        shapes: [shape],
+        canLiveUpdate: isLiveTarget,
+        liveTargetId: isLiveTarget ? node.id : void 0,
+        liveTargetName: isLiveTarget ? node.name : void 0
+      };
     }
     const shapes = [];
     for (const node of selection) {
@@ -474,7 +501,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
         isRectangular: isRectangular(node)
       });
     }
-    return { mode: "batch", shapes };
+    return { mode: "batch", shapes, canLiveUpdate: false };
   }
   async function loadDisplayFont(family) {
     const candidates = [
@@ -495,26 +522,6 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
   }
   async function preloadSceneFonts(displayFont) {
     return loadDisplayFont(displayFont);
-  }
-  const RECIPE_KEY = "patternForgeRecipe";
-  const RECIPE_VERSION = 1;
-  function saveRecipe(frame, params, seed, mode) {
-    const recipe = { seed, params, mode, version: RECIPE_VERSION };
-    frame.setPluginData(RECIPE_KEY, JSON.stringify(recipe));
-  }
-  function loadRecipe(node) {
-    try {
-      const raw = node.getPluginData(RECIPE_KEY);
-      if (!raw) return null;
-      const recipe = JSON.parse(raw);
-      if (recipe.version !== RECIPE_VERSION) return null;
-      return recipe;
-    } catch (e) {
-      return null;
-    }
-  }
-  function hasRecipe(node) {
-    return !!node.getPluginData(RECIPE_KEY);
   }
   function angleToGradientTransform(angleDeg, x, y, w, h) {
     const rad = angleDeg * Math.PI / 180;
@@ -700,6 +707,58 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     figma.notify(`Pattern Forge: inserted ${frames.length} patterns ✓`, { timeout: 2500 });
     return frames;
   }
+  async function renderInPlace(targetFrame, spec, params) {
+    const fontName = await preloadSceneFonts(params.displayFont || "Times New Roman");
+    const bb = targetFrame.absoluteBoundingBox;
+    const parentX = bb ? bb.x : targetFrame.x;
+    const parentY = bb ? bb.y : targetFrame.y;
+    const tempFrame = figma.createFrame();
+    tempFrame.x = parentX;
+    tempFrame.y = parentY;
+    tempFrame.resize(Math.max(1, spec.canvas.width), Math.max(1, spec.canvas.height));
+    figma.currentPage.appendChild(tempFrame);
+    try {
+      const allBlocksToRender = [
+        ...spec.blocks,
+        ...spec.gradientBlock ? [spec.gradientBlock] : []
+      ];
+      if (allBlocksToRender.length > 0) {
+        const blockNodes = allBlocksToRender.map(
+          (block) => createBlockNode(block, parentX, parentY)
+        );
+        const blocksGroup = figma.group(blockNodes, tempFrame);
+        blocksGroup.name = "Blocks";
+      }
+      if (spec.textureRegions.length > 0) {
+        const texNodes = spec.textureRegions.map(
+          (tex) => createTextureNode(tex, parentX, parentY)
+        );
+        const texGroup = figma.group(texNodes, tempFrame);
+        texGroup.name = "Texture";
+      }
+      if (spec.labels.length > 0) {
+        const labelNodes = await Promise.all(
+          spec.labels.map((label) => createLabelNode(label, parentX, parentY, fontName))
+        );
+        const labelsGroup = figma.group(labelNodes, tempFrame);
+        labelsGroup.name = "Labels";
+      }
+      const previousChildren = [...targetFrame.children];
+      for (const child of previousChildren) {
+        child.remove();
+      }
+      for (const child of [...tempFrame.children]) {
+        targetFrame.appendChild(child);
+      }
+      targetFrame.fills = [{ type: "SOLID", color: { r: 1, g: 1, b: 1 } }];
+      targetFrame.clipsContent = true;
+      saveRecipe(targetFrame, params, spec.seed, "fill");
+    } finally {
+      if (!tempFrame.removed) {
+        tempFrame.remove();
+      }
+    }
+  }
   figma.showUI(__html__, {
     width: 320,
     height: 580,
@@ -731,6 +790,31 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     switch (rawMsg.type) {
       case "REQUEST_SELECTION_INFO": {
         sendSelectionInfo();
+        break;
+      }
+      case "LIVE_UPDATE": {
+        const msg = rawMsg;
+        const { params, seed, targetFrameId } = msg;
+        try {
+          const target = figma.getNodeById(targetFrameId);
+          if (target && target.type === "FRAME") {
+            const paramsWithSeed = __spreadProps(__spreadValues({}, params), { seed });
+            const { spec } = generateScene(paramsWithSeed, {
+              mode: "fill",
+              shapes: [{
+                nodeId: target.id,
+                x: target.x,
+                y: target.y,
+                width: target.width,
+                height: target.height,
+                isRectangular: true
+              }]
+            });
+            await renderInPlace(target, spec, paramsWithSeed);
+          }
+        } catch (err) {
+          console.warn("Pattern Forge live update error:", err);
+        }
         break;
       }
       case "INSERT": {
