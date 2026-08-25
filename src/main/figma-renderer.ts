@@ -20,8 +20,15 @@ function angleToGradientTransform(angleDeg: number, x: number, y: number, w: num
   const cx = x + w / 2;
   const cy = y + h / 2;
   const len = Math.sqrt(w * w + h * h) / 2;
-  const dx = Math.cos(rad) * len;
-  const dy = Math.sin(rad) * len;
+  // CSS/preview-style angle convention: 0°=up, 90°=right, 180°=down, 270°=left.
+  // Must match CanvasPreviewRenderer.tsx's drawGradientBlock exactly — layout.ts's
+  // angleDeg values are tuned against the preview's convention, and this renderer
+  // has to agree or the same seed fades in a different direction in real Figma
+  // than it does on screen (previously this used standard math angles, 0°=right/
+  // 90°=down, a 90° offset from the preview — angleDeg:180 rendered as a
+  // horizontal fade here instead of the vertical fade shown in preview).
+  const dx = Math.sin(rad) * len;
+  const dy = -Math.cos(rad) * len;
 
   // Figma gradient transform: maps [0,0]→[1,0] in gradient space to scene coords
   const startX = (cx - dx - x) / w;
@@ -176,8 +183,24 @@ export async function renderToFigma(
   if (targetNode && (mode === 'fill' || mode === 'mask')) {
     const bb = targetNode.absoluteBoundingBox;
     if (bb) {
-      parentX = bb.x;
-      parentY = bb.y;
+      if (mode === 'mask') {
+        // Mask mode's canvas is deliberately sized to the full requested output
+        // (see resolveCanvasSize in layout.ts) so content can extend past the
+        // anchor shape, and layout.ts centers the dense cluster at the canvas's
+        // own center (width*0.5, height*0.5). If we anchor the frame at the
+        // shape's top-left corner (as fill mode correctly does, since fill's
+        // canvas is sized exactly to the shape), the shape ends up sitting at
+        // the frame's top-left corner instead of at the visual center of the
+        // generated field. Anchor the shape's own center to the frame's local
+        // center instead, so it lines up with where layout.ts centers the cluster.
+        const shapeCenterX = bb.x + bb.width / 2;
+        const shapeCenterY = bb.y + bb.height / 2;
+        parentX = shapeCenterX - spec.canvas.width / 2;
+        parentY = shapeCenterY - spec.canvas.height / 2;
+      } else {
+        parentX = bb.x;
+        parentY = bb.y;
+      }
     }
   }
 

@@ -7798,8 +7798,14 @@ function generateLabels(rng, params, blocks, canvas) {
           y2 = anchor.y + rngFloat(rng, 0, Math.max(0, anchor.height - height));
           break;
       }
+      const rawX = x2;
+      const rawY = y2;
       x2 = Math.max(4, Math.min(x2, Math.max(4, canvas.width - width - 4)));
       y2 = Math.max(4, Math.min(y2, Math.max(4, canvas.height - height - 4)));
+      const driftX = Math.abs(x2 - rawX);
+      const driftY = Math.abs(y2 - rawY);
+      const maxDrift = 20;
+      if (driftX > maxDrift || driftY > maxDrift) continue;
       const candidate = { x: x2, y: y2, width, height };
       const collides = occupiedByLabels.some((placed) => overlaps(candidate, placed, 4)) || occupiedByBlocks.some((block) => overlaps(candidate, block, 2));
       if (!collides) {

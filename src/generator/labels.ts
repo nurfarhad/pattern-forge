@@ -99,9 +99,26 @@ export function generateLabels(
           break;
       }
 
+      const rawX = x;
+      const rawY = y;
+
       // Ensure label stays within canvas boundary with 4px margin
       x = Math.max(4, Math.min(x, Math.max(4, canvas.width - width - 4)));
       y = Math.max(4, Math.min(y, Math.max(4, canvas.height - height - 4)));
+
+      // The clamp above only guarantees the label stays on-canvas — it says
+      // nothing about whether it's still anywhere near the block it was
+      // supposed to be anchored to. A block placed close to the canvas edge
+      // can compute a raw position far off-canvas, get shoved back by the
+      // clamp, and land nowhere near its anchor while still being trivially
+      // collision-free (nothing else is out there either). Reject placements
+      // the clamp had to move more than a small tolerance, so we retry a
+      // different anchor/side instead of silently accepting a floating label.
+      const driftX = Math.abs(x - rawX);
+      const driftY = Math.abs(y - rawY);
+      const maxDrift = 20;
+      if (driftX > maxDrift || driftY > maxDrift) continue;
+
       const candidate: Bounds = { x, y, width, height };
 
       const collides =

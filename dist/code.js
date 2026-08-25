@@ -124,8 +124,14 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
             y = anchor.y + rngFloat(rng, 0, Math.max(0, anchor.height - height));
             break;
         }
+        const rawX = x;
+        const rawY = y;
         x = Math.max(4, Math.min(x, Math.max(4, canvas.width - width - 4)));
         y = Math.max(4, Math.min(y, Math.max(4, canvas.height - height - 4)));
+        const driftX = Math.abs(x - rawX);
+        const driftY = Math.abs(y - rawY);
+        const maxDrift = 20;
+        if (driftX > maxDrift || driftY > maxDrift) continue;
         const candidate = { x, y, width, height };
         const collides = occupiedByLabels.some((placed) => overlaps(candidate, placed, 4)) || occupiedByBlocks.some((block) => overlaps(candidate, block, 2));
         if (!collides) {
@@ -515,8 +521,8 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     const cx = x + w / 2;
     const cy = y + h / 2;
     const len = Math.sqrt(w * w + h * h) / 2;
-    const dx = Math.cos(rad) * len;
-    const dy = Math.sin(rad) * len;
+    const dx = Math.sin(rad) * len;
+    const dy = -Math.cos(rad) * len;
     const startX = (cx - dx - x) / w;
     const startY = (cy - dy - y) / h;
     const endX = (cx + dx - x) / w;
@@ -598,8 +604,15 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     if (targetNode && (mode === "fill" || mode === "mask")) {
       const bb = targetNode.absoluteBoundingBox;
       if (bb) {
-        parentX = bb.x;
-        parentY = bb.y;
+        if (mode === "mask") {
+          const shapeCenterX = bb.x + bb.width / 2;
+          const shapeCenterY = bb.y + bb.height / 2;
+          parentX = shapeCenterX - spec.canvas.width / 2;
+          parentY = shapeCenterY - spec.canvas.height / 2;
+        } else {
+          parentX = bb.x;
+          parentY = bb.y;
+        }
       }
     }
     const frame = figma.createFrame();
