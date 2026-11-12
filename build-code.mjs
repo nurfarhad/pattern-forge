@@ -41,7 +41,7 @@ await build({
       },
     },
     target: 'es2017',
-    minify: false,
+    minify: true,
   },
 });
 

@@ -10,6 +10,7 @@ import { Panel } from './components/Panel';
 import { Button } from './components/Button';
 import { SwatchGrid } from './components/SwatchGrid';
 import { PresetChip } from './components/PresetChip';
+import { SeedRow } from './components/SeedRow';
 import { CanvasPreviewRenderer } from './preview/CanvasPreviewRenderer';
 
 import {
@@ -29,9 +30,9 @@ export const App: React.FC = () => {
   const store = useParamsStore();
   const {
     params, mode, currentSpec, userPresets,
-    setParam, setMode, regenerate,
-    applyPreset, addUserPreset, removeUserPreset,
-    loadRecipe, setInserting, isInserting, constraints,
+    setParam, setMode, regenerate, shuffleSeed,
+    applyPreset, addUserPreset, removeUserPreset, setUserPresets,
+    loadRecipe, setInserting, isInserting, constraints, setConstraints,
   } = store;
 
   const [activePresetId, setActivePresetId] = useState<string | null>('dense-cluster');
@@ -47,7 +48,7 @@ export const App: React.FC = () => {
   useEffect(() => {
     const unsub = onPluginMessage((msg) => {
       if (msg.type === 'SELECTION_INFO') {
-        store.setConstraints(msg.constraints);
+        setConstraints(msg.constraints);
       } else if (msg.type === 'INSERT_COMPLETE') {
         setInserting(false);
       } else if (msg.type === 'LOADED_RECIPE') {
@@ -56,13 +57,15 @@ export const App: React.FC = () => {
         setTimeout(() => {
           isSyncingRecipeRef.current = false;
         }, 150);
+      } else if (msg.type === 'USER_PRESETS_LOADED') {
+        setUserPresets(msg.presets);
       }
     });
 
     // Ask for initial selection state
     sendRequestSelectionInfo();
     return unsub;
-  }, []);
+  }, [setConstraints, setInserting, loadRecipe, setUserPresets]);
 
   // ── Debounced live update push to Figma canvas ───────────────────────────
   useEffect(() => {
@@ -196,6 +199,13 @@ export const App: React.FC = () => {
             {nodeCountWarning && (
               <span style={{ fontSize: 10, color: 'var(--pf-warning)' }}>⚠ High node count</span>
             )}
+          </div>
+          <div style={{ marginTop: 10 }}>
+            <SeedRow
+              seed={params.seed}
+              onSeedChange={(newSeed) => setParam('seed', newSeed)}
+              onShuffle={shuffleSeed}
+            />
           </div>
         </div>
 
@@ -403,7 +413,18 @@ export const App: React.FC = () => {
                   type="number"
                   min={100} max={8000}
                   value={params.outputSize.width}
-                  onChange={(e) => setParam('outputSize', { ...params.outputSize, width: Number(e.target.value) })}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    setParam('outputSize', {
+                      ...params.outputSize,
+                      width: Math.min(8000, Number.isFinite(v) ? v : 1080),
+                    });
+                  }}
+                  onBlur={(e) => {
+                    const v = Number(e.target.value);
+                    const clamped = Math.min(8000, Math.max(100, Number.isFinite(v) && v > 0 ? v : 100));
+                    setParam('outputSize', { ...params.outputSize, width: clamped });
+                  }}
                   id="pf-custom-width"
                 />
               </div>
@@ -414,7 +435,18 @@ export const App: React.FC = () => {
                   type="number"
                   min={100} max={8000}
                   value={params.outputSize.height}
-                  onChange={(e) => setParam('outputSize', { ...params.outputSize, height: Number(e.target.value) })}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    setParam('outputSize', {
+                      ...params.outputSize,
+                      height: Math.min(8000, Number.isFinite(v) ? v : 1080),
+                    });
+                  }}
+                  onBlur={(e) => {
+                    const v = Number(e.target.value);
+                    const clamped = Math.min(8000, Math.max(100, Number.isFinite(v) && v > 0 ? v : 100));
+                    setParam('outputSize', { ...params.outputSize, height: clamped });
+                  }}
                   id="pf-custom-height"
                 />
               </div>

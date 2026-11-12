@@ -17,6 +17,7 @@ interface CanvasPreviewRendererProps {
 }
 
 const textureCache = new Map<string, HTMLImageElement>();
+const MAX_TEXTURE_CACHE_SIZE = 50;
 
 function loadTexture(spec: TextureSpec, customColors?: Record<string, string>): Promise<HTMLImageElement> {
   const inkHex = (customColors && customColors[spec.ink]) || spec.ink;
@@ -33,6 +34,10 @@ function loadTexture(spec: TextureSpec, customColors?: Record<string, string>): 
   return new Promise((resolve, reject) => {
     const image = new Image();
     image.onload = () => {
+      if (textureCache.size >= MAX_TEXTURE_CACHE_SIZE) {
+        const oldestKey = textureCache.keys().next().value;
+        if (oldestKey) textureCache.delete(oldestKey);
+      }
       textureCache.set(key, image);
       resolve(image);
     };

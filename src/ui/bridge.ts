@@ -7,6 +7,7 @@ import type {
   MainToUIMessage,
   GenerationParams,
   SelectionConstraints,
+  Preset,
 } from '@generator/scene-spec';
 
 // ─── UI → Main ────────────────────────────────────────────────────────────────
@@ -23,6 +24,11 @@ export function sendLiveUpdate(params: GenerationParams, seed: string, targetFra
 
 export function sendRequestSelectionInfo(): void {
   const msg: UIToMainMessage = { type: 'REQUEST_SELECTION_INFO' };
+  parent.postMessage({ pluginMessage: msg }, '*');
+}
+
+export function sendSaveUserPresets(presets: Preset[]): void {
+  const msg: UIToMainMessage = { type: 'SAVE_USER_PRESETS', presets };
   parent.postMessage({ pluginMessage: msg }, '*');
 }
 

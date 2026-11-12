@@ -24,7 +24,7 @@
   --pf-error:         #FC3018;
 }
 
-/* ─── Dark theme (Figma dark UI) ────────────────────────────────────────── */
+/* ─── Dark theme (Figma dark UI or OS dark mode) ────────────────────────── */
 @media (prefers-color-scheme: dark) {
   :root {
     --pf-bg:            #1e1e1e;
@@ -39,6 +39,38 @@
     --pf-text-secondary:#aaaaaa;
     --pf-text-muted:    #666666;
   }
+}
+
+:root.figma-dark,
+body.figma-dark,
+.figma-dark {
+  --pf-bg:            #1e1e1e;
+  --pf-surface:       #2a2a2a;
+  --pf-surface-2:     #333333;
+  --pf-border:        #3a3a3a;
+  --pf-hover:         #383838;
+  --pf-input-bg:      #2a2a2a;
+  --pf-track-bg:      #3a3a3a;
+
+  --pf-text-primary:  #f0f0f0;
+  --pf-text-secondary:#aaaaaa;
+  --pf-text-muted:    #666666;
+}
+
+:root.figma-light,
+body.figma-light,
+.figma-light {
+  --pf-bg:            #f8f8f8;
+  --pf-surface:       #ffffff;
+  --pf-surface-2:     #f2f2f2;
+  --pf-border:        #e0e0e0;
+  --pf-hover:         #ebebeb;
+  --pf-input-bg:      #ffffff;
+  --pf-track-bg:      #e0e0e0;
+
+  --pf-text-primary:  #1a1a1a;
+  --pf-text-secondary:#666666;
+  --pf-text-muted:    #999999;
 }
 
 /* ─── Figma plugin theme vars override (when themeColors: true is set) ──── */
@@ -130,6 +162,13 @@ body {
     border-color: rgba(74,222,128,0.45);
     box-shadow: 0 0 6px rgba(74,222,128,0.2);
   }
+}
+
+.figma-dark .pf-header__mode-badge--live {
+  background: rgba(60,144,84,0.25);
+  color: #4ade80;
+  border-color: rgba(74,222,128,0.45);
+  box-shadow: 0 0 6px rgba(74,222,128,0.2);
 }
 
 .pf-header__mode-control {

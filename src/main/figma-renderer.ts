@@ -235,7 +235,9 @@ export async function renderToFigma(
         const cloned = targetNode.clone();
         cloned.x = 0;
         cloned.y = 0;
-        cloned.isMask = true;
+        if ('isMask' in cloned) {
+          cloned.isMask = true;
+        }
         cloned.name = '_mask';
         // Insert mask at bottom of frame stack (Figma: mask clips nodes ABOVE it)
         frame.insertChild(0, cloned);
@@ -364,6 +366,9 @@ export async function renderInPlace(
 
     targetFrame.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
     targetFrame.clipsContent = true;
+    if (targetFrame.name.startsWith('Pattern — seed ')) {
+      targetFrame.name = `Pattern — seed ${spec.seed}`;
+    }
 
     // ── Re-stamp recipe for subsequent re-edits ────────────────────────────
     saveRecipe(targetFrame, params, spec.seed, 'fill');

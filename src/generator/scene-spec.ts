@@ -136,14 +136,40 @@ export interface InsertCompleteMessage {
   frameId: string;
 }
 
+export interface Preset {
+  id: string;
+  name: string;
+  params: Partial<GenerationParams>;
+  isBuiltIn: boolean;
+}
+
+export interface SavePresetsMessage {
+  type: 'SAVE_USER_PRESETS';
+  presets: Preset[];
+}
+
+export interface LoadedPresetsMessage {
+  type: 'USER_PRESETS_LOADED';
+  presets: Preset[];
+}
+
 export interface LoadedRecipeMessage {
   type: 'LOADED_RECIPE';
   params: GenerationParams;
   seed: string;
 }
 
-export type UIToMainMessage = InsertMessage | LiveUpdateMessage | RequestSelectionInfoMessage;
-export type MainToUIMessage = SelectionInfoMessage | InsertCompleteMessage | LoadedRecipeMessage;
+export type UIToMainMessage =
+  | InsertMessage
+  | LiveUpdateMessage
+  | RequestSelectionInfoMessage
+  | SavePresetsMessage;
+
+export type MainToUIMessage =
+  | SelectionInfoMessage
+  | InsertCompleteMessage
+  | LoadedRecipeMessage
+  | LoadedPresetsMessage;
 
 export interface Recipe {
   seed: string;

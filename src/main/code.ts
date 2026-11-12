@@ -23,6 +23,24 @@ figma.showUI(__html__, {
   title: 'Pattern Forge',
 });
 
+// ─── User presets storage (FR-12) ─────────────────────────────────────────────
+
+const CLIENT_STORAGE_PRESETS_KEY = 'patternForgeUserPresets';
+
+async function sendUserPresets(): Promise<void> {
+  try {
+    const raw = await figma.clientStorage.getAsync(CLIENT_STORAGE_PRESETS_KEY);
+    const presets = Array.isArray(raw) ? raw : [];
+    const msg: MainToUIMessage = { type: 'USER_PRESETS_LOADED', presets };
+    figma.ui.postMessage(msg);
+  } catch (err) {
+    console.warn('Pattern Forge: failed to load user presets from clientStorage', err);
+  }
+}
+
+// Send stored user presets on launch
+sendUserPresets();
+
 // ─── Send initial selection info ──────────────────────────────────────────────
 
 function sendSelectionInfo(): void {
@@ -58,6 +76,16 @@ figma.ui.onmessage = async (rawMsg: UIToMainMessage) => {
 
     case 'REQUEST_SELECTION_INFO': {
       sendSelectionInfo();
+      sendUserPresets();
+      break;
+    }
+
+    case 'SAVE_USER_PRESETS': {
+      try {
+        await figma.clientStorage.setAsync(CLIENT_STORAGE_PRESETS_KEY, rawMsg.presets);
+      } catch (err) {
+        console.warn('Pattern Forge: failed to save user presets to clientStorage', err);
+      }
       break;
     }
 
@@ -127,7 +155,10 @@ figma.ui.onmessage = async (rawMsg: UIToMainMessage) => {
             }
           }
 
-          await renderToFigma(spec, { params: paramsWithSeed, mode, targetNode, isRectangular });
+          const frame = await renderToFigma(spec, { params: paramsWithSeed, mode, targetNode, isRectangular });
+          figma.currentPage.selection = [frame];
+          figma.viewport.scrollAndZoomIntoView([frame]);
+          figma.notify(`Pattern inserted (seed ${spec.seed}) ✓`, { timeout: 2500 });
         }
 
         const msg: MainToUIMessage = {

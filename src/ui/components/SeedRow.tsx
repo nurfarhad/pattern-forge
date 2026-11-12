@@ -27,6 +27,7 @@ export const SeedRow: React.FC<SeedRowProps> = ({ seed, onSeedChange, onShuffle 
           onChange={(e) => onSeedChange(e.target.value)}
           placeholder="e.g. 8842"
           maxLength={20}
+          disabled={locked}
         />
         <button
           className="pf-seed-row__btn"

@@ -1,5 +1,5 @@
 import type { TextureSpec } from './scene-spec';
-import { PALETTE, getTokenHex } from './palette';
+import { getTokenHex } from './palette';
 
 export const DEFAULT_DOT_SIZE = 1.5;
 export const MAX_TEXTURE_DOTS_PER_REGION = 2400;

@@ -2,9 +2,12 @@
 // Holds all generation params, current SceneSpec, mode, and session history.
 
 import { create } from 'zustand';
-import type { GenerationParams, SceneSpec, SourceMode, SelectionConstraints } from '@generator/scene-spec';
+import type { GenerationParams, SceneSpec, SourceMode, SelectionConstraints, Preset } from '@generator/scene-spec';
 import { DEFAULT_PARAMS } from '@generator/scene-spec';
 import { generateScene } from '@generator/generate';
+import { sendSaveUserPresets } from '../bridge';
+
+export type { Preset } from '@generator/scene-spec';
 
 // ─── History entry ────────────────────────────────────────────────────────────
 
@@ -18,13 +21,6 @@ export interface HistoryEntry {
 }
 
 // ─── Built-in presets ─────────────────────────────────────────────────────────
-
-export interface Preset {
-  id: string;
-  name: string;
-  params: Partial<GenerationParams>;
-  isBuiltIn: boolean;
-}
 
 export const BUILT_IN_PRESETS: Preset[] = [
   {
@@ -98,6 +94,7 @@ interface ParamsStore {
   loadFromHistory: (entry: HistoryEntry) => void;
   addUserPreset: (preset: Preset) => void;
   removeUserPreset: (id: string) => void;
+  setUserPresets: (presets: Preset[]) => void;
   loadRecipe: (params: GenerationParams, seed: string) => void;
   setInserting: (v: boolean) => void;
 }
@@ -216,11 +213,23 @@ export const useParamsStore = create<ParamsStore>((set, get) => {
     },
 
     addUserPreset(preset) {
-      set((s) => ({ userPresets: [...s.userPresets, preset] }));
+      set((s) => {
+        const next = [...s.userPresets, preset];
+        sendSaveUserPresets(next);
+        return { userPresets: next };
+      });
     },
 
     removeUserPreset(id) {
-      set((s) => ({ userPresets: s.userPresets.filter((p) => p.id !== id) }));
+      set((s) => {
+        const next = s.userPresets.filter((p) => p.id !== id);
+        sendSaveUserPresets(next);
+        return { userPresets: next };
+      });
+    },
+
+    setUserPresets(presets) {
+      set({ userPresets: presets });
     },
 
     loadRecipe(params, seed) {

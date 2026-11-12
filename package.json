@@ -1,6 +1,6 @@
 {
   "name": "pattern-forge",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Figma plugin — generative brand pattern generator",
   "private": true,
   "type": "module",
@@ -8,6 +8,7 @@
     "build:ui":   "vite build",
     "build:code": "node build-code.mjs",
     "build":      "npm run build:ui && npm run build:code",
+    "typecheck":  "tsc --noEmit",
     "dev":        "vite build --watch",
     "dev:code":   "node build-code.mjs --watch",
     "preview-ui": "vite --open"

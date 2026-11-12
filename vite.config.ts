@@ -29,7 +29,7 @@ export default defineConfig({
       },
     },
     target: 'es2017',
-    minify: false,
+    minify: true,
     cssCodeSplit: false,
     assetsInlineLimit: 100000000, // inline everything (for viteSingleFile)
   },
