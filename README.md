@@ -2,6 +2,29 @@
 
 > A Figma plugin that procedurally generates on-brand generative-pattern compositions: layered semi-transparent color blocks, halftone dot-texture, Multiply-blend overlaps, gradient blocks, and scattered serif data-readout labels — all as **fully native, fully editable Figma nodes**.
 
+
+![Pattern Forge — brand patterns, forged in one click](assets/community-cover-1920x1080.png)
+
+<table>
+  <tr>
+    <td><img src="assets/gallery-02-how-it-works.png" alt="How Pattern Forge works in three steps" /></td>
+    <td><img src="assets/gallery-03-whats-inside.png" alt="The five ingredients in every pattern" /></td>
+  </tr>
+  <tr>
+    <td><img src="assets/gallery-04-modes.png" alt="Random, Fill, Anchor and Batch modes" /></td>
+    <td><img src="assets/gallery-05-use-cases.png" alt="Patterns used on a poster, social post, website and business cards" /></td>
+  </tr>
+</table>
+
+## Community assets
+
+| File | Use |
+| --- | --- |
+| `assets/plugin-icon-128.png` | Figma Community icon |
+| `assets/community-cover-1920x1080.png` | Community thumbnail and first carousel image |
+| `assets/gallery-02` … `gallery-05` | Carousel images, in order |
+| `assets/github-social-preview-1280x640.png` | GitHub → Settings → Social preview |
+
 ---
 
 ## Setup
