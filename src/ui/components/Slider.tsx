@@ -1,5 +1,6 @@
 // ─── Slider — Toolcraft hairline track, square thumb, editable value ─────────
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { interaction } from '../state/interaction';
 import './Slider.css';
 
 interface SliderProps {
@@ -20,6 +21,20 @@ const clampStep = (v: number, min: number, max: number, step: number) => {
   const s = Math.round((v - min) / step) * step + min;
   return Math.min(max, Math.max(min, Number(s.toFixed(6))));
 };
+
+/** Coalesce many pointer events into at most one onChange per animation frame. */
+export function useFrameEmitter<T>(onChange: (v: T) => void) {
+  const pending = useRef<{ v: T } | null>(null);
+  const raf = useRef(0);
+  const cb = useRef(onChange);
+  cb.current = onChange;
+  useEffect(() => () => cancelAnimationFrame(raf.current), []);
+  const flush = () => { raf.current = 0; if (pending.current) { const { v } = pending.current; pending.current = null; cb.current(v); } };
+  return {
+    emit(v: T) { pending.current = { v }; if (!raf.current) raf.current = requestAnimationFrame(flush); },
+    flushNow() { if (raf.current) { cancelAnimationFrame(raf.current); flush(); } },
+  };
+}
 
 export function useTrackDrag(min: number, max: number, step: number) {
   const ref = useRef<HTMLDivElement>(null);
@@ -62,7 +77,12 @@ export const Slider: React.FC<SliderProps> = ({
 }) => {
   const { ref, valueAt } = useTrackDrag(min, max, step);
   const [dragging, setDragging] = useState(false);
-  const pct = ((value - min) / (max - min)) * 100;
+  const [local, setLocal] = useState<number | null>(null);
+  const out = useFrameEmitter(onChange);
+  const shown = local ?? value;
+  const pct = ((shown - min) / (max - min)) * 100;
+  const move = (v: number) => { setLocal(v); if (v !== shown) out.emit(v); };
+  const end = () => { out.flushNow(); setDragging(false); setLocal(null); interaction.set(false); };
   const fmt = (v: number) => (decimals === 0 ? Math.round(v) : v.toFixed(decimals)) + unit;
   const positions = Math.round((max - min) / step) + 1;
   const ticks = discrete && positions <= 32 ? Array.from({ length: positions - 2 }, (_, i) => ((i + 1) / (positions - 1)) * 100) : [];
@@ -79,7 +99,7 @@ export const Slider: React.FC<SliderProps> = ({
     <div className="tc-field" id={id}>
       <div className="tc-field__row">
         <span className="tc-label">{label}</span>
-        <ValueLabel text={fmt(value)} numeric={Number(value.toFixed(decimals))} label={label} onCommit={(v) => onChange(clampStep(v, min, max, step))} />
+        <ValueLabel text={fmt(shown)} numeric={Number(value.toFixed(decimals))} label={label} onCommit={(v) => onChange(clampStep(v, min, max, step))} />
       </div>
       <div
         ref={ref}
@@ -89,14 +109,15 @@ export const Slider: React.FC<SliderProps> = ({
         aria-label={label}
         aria-valuemin={min}
         aria-valuemax={max}
-        aria-valuenow={value}
-        aria-valuetext={fmt(value)}
+        aria-valuenow={shown}
+        aria-valuetext={fmt(shown)}
         onKeyDown={onKey}
         onDoubleClick={() => defaultValue !== undefined && onChange(defaultValue)}
-        onPointerDown={(e) => { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); setDragging(true); onChange(valueAt(e.clientX)); }}
-        onPointerMove={(e) => { if (dragging) onChange(valueAt(e.clientX)); }}
-        onPointerUp={() => setDragging(false)}
-        onPointerCancel={() => setDragging(false)}
+        onPointerDown={(e) => { if (e.button !== 0) return; e.preventDefault(); (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); interaction.set(true); setDragging(true); move(valueAt(e.clientX)); }}
+        onPointerMove={(e) => { if (dragging) move(valueAt(e.clientX)); }}
+        onPointerUp={end}
+        onPointerCancel={end}
+        onLostPointerCapture={() => dragging && end()}
       >
         <div className="tc-slider__track" />
         <div className="tc-slider__range" style={{ width: `${pct}%` }} />
@@ -125,13 +146,17 @@ export const RangeSlider: React.FC<RangeSliderProps> = ({
 }) => {
   const { ref, valueAt } = useTrackDrag(min, max, step);
   const [active, setActive] = useState<0 | 1 | null>(null);
-  const [lo, hi] = value;
+  const [local, setLocal] = useState<[number, number] | null>(null);
+  const out = useFrameEmitter(onChange);
+  const cur = local ?? value;
+  const [lo, hi] = cur;
   const p = (v: number) => ((v - min) / (max - min)) * 100;
   const set = (which: 0 | 1, v: number) => {
-    if (which === 0) onChange([Math.min(v, hi - minGap), hi]);
-    else onChange([lo, Math.max(v, lo + minGap)]);
+    const next: [number, number] = which === 0 ? [Math.max(min, Math.min(v, hi - minGap)), hi] : [lo, Math.min(max, Math.max(v, lo + minGap))];
+    if (active === null && local === null) { onChange(next); return; }
+    setLocal(next); out.emit(next);
   };
-  const parse = (s: number) => s;
+  const end = () => { out.flushNow(); setActive(null); setLocal(null); interaction.set(false); };
   const text = `${lo.toFixed(decimals)} – ${hi.toFixed(decimals)}`;
 
   return (
@@ -147,12 +172,18 @@ export const RangeSlider: React.FC<RangeSliderProps> = ({
         onPointerDown={(e) => {
           const v = valueAt(e.clientX);
           const which: 0 | 1 = Math.abs(v - lo) <= Math.abs(v - hi) ? 0 : 1;
+          if (e.button !== 0) return;
+          e.preventDefault();
           (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-          setActive(which); set(which, parse(v));
+          interaction.set(true);
+          setActive(which);
+          const next: [number, number] = which === 0 ? [Math.min(v, hi - minGap), hi] : [lo, Math.max(v, lo + minGap)];
+          setLocal(next); out.emit(next);
         }}
         onPointerMove={(e) => { if (active !== null) set(active, valueAt(e.clientX)); }}
-        onPointerUp={() => setActive(null)}
-        onPointerCancel={() => setActive(null)}
+        onPointerUp={end}
+        onPointerCancel={end}
+        onLostPointerCapture={() => active !== null && end()}
       >
         <div className="tc-slider__track" />
         <div className="tc-slider__range" style={{ left: `${p(lo)}%`, width: `${p(hi) - p(lo)}%` }} />
@@ -160,16 +191,16 @@ export const RangeSlider: React.FC<RangeSliderProps> = ({
           <span
             key={i}
             className="tc-slider__thumb"
-            style={{ left: `${p(value[i])}%` }}
+            style={{ left: `${p(cur[i])}%` }}
             role="slider"
             tabIndex={0}
             aria-label={`${label} ${i === 0 ? 'minimum' : 'maximum'}`}
-            aria-valuenow={value[i]}
+            aria-valuenow={cur[i]}
             aria-valuemin={min}
             aria-valuemax={max}
             onKeyDown={(e) => {
               const d = e.key === 'ArrowRight' || e.key === 'ArrowUp' ? step : e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? -step : 0;
-              if (d) { e.preventDefault(); set(i, clampStep(value[i] + d * (e.shiftKey ? 10 : 1), min, max, step)); }
+              if (d) { e.preventDefault(); set(i, clampStep(cur[i] + d * (e.shiftKey ? 10 : 1), min, max, step)); }
             }}
           />
         ))}

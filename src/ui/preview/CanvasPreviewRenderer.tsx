@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import type { BlockSpec, GradientSpec, SceneSpec, TextureSpec } from '@generator/scene-spec';
 import { tokenToCss } from '@generator/palette';
-import { textureSpecToDataUrl } from '@generator/texture';
+import { getTokenHex } from '@generator/palette';
 import './CanvasPreviewRenderer.css';
 
 const BLEND_MAP: Record<BlockSpec['blendMode'], GlobalCompositeOperation> = {
@@ -16,34 +16,44 @@ interface CanvasPreviewRendererProps {
   onRender?: (dataUrl: string) => void;
 }
 
-const textureCache = new Map<string, HTMLImageElement>();
-const MAX_TEXTURE_CACHE_SIZE = 50;
+// Halftone texture drawn synchronously from a cached 1-cell tile pattern.
+// (The old path decoded an SVG data-URL per region asynchronously, which
+// blanked the canvas and flickered on every slider move.)
+const tileCache = new Map<string, HTMLCanvasElement>();
 
-function loadTexture(spec: TextureSpec, customColors?: Record<string, string>): Promise<HTMLImageElement> {
-  const inkHex = (customColors && customColors[spec.ink]) || spec.ink;
-  const key = [
-    spec.dotSize,
-    spec.spacing,
-    inkHex,
-    spec.region.width,
-    spec.region.height,
-  ].join(':');
-  const cached = textureCache.get(key);
-  if (cached) return Promise.resolve(cached);
+function getTile(spec: TextureSpec, customColors?: Record<string, string>): HTMLCanvasElement {
+  const ink = getTokenHex(spec.ink, customColors);
+  const spacing = Math.max(spec.dotSize * 2.5, spec.spacing, 1);
+  const key = `${spec.dotSize}:${spacing}:${ink}`;
+  let tile = tileCache.get(key);
+  if (!tile) {
+    const res = 4; // supersample so dots stay crisp when scaled down
+    tile = document.createElement('canvas');
+    tile.width = Math.max(1, Math.round(spacing * res));
+    tile.height = tile.width;
+    const c = tile.getContext('2d')!;
+    c.fillStyle = ink;
+    c.beginPath();
+    c.arc(tile.width / 2, tile.height / 2, spec.dotSize * res, 0, Math.PI * 2);
+    c.fill();
+    if (tileCache.size > 64) tileCache.clear();
+    tileCache.set(key, tile);
+  }
+  return tile;
+}
 
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => {
-      if (textureCache.size >= MAX_TEXTURE_CACHE_SIZE) {
-        const oldestKey = textureCache.keys().next().value;
-        if (oldestKey) textureCache.delete(oldestKey);
-      }
-      textureCache.set(key, image);
-      resolve(image);
-    };
-    image.onerror = () => reject(new Error('Texture preview failed to load'));
-    image.src = textureSpecToDataUrl(spec, customColors);
-  });
+function drawTexture(context: CanvasRenderingContext2D, spec: TextureSpec, customColors?: Record<string, string>) {
+  const tile = getTile(spec, customColors);
+  const pattern = context.createPattern(tile, 'repeat');
+  if (!pattern) return;
+  const spacing = Math.max(spec.dotSize * 2.5, spec.spacing, 1);
+  const k = spacing / tile.width;
+  pattern.setTransform(new DOMMatrix([k, 0, 0, k, spec.region.x, spec.region.y]));
+  context.save();
+  context.globalAlpha = spec.opacity;
+  context.fillStyle = pattern;
+  context.fillRect(spec.region.x, spec.region.y, spec.region.width, spec.region.height);
+  context.restore();
 }
 
 function drawSolidBlock(
@@ -96,104 +106,74 @@ function drawGradientBlock(
 export const CanvasPreviewRenderer: React.FC<CanvasPreviewRendererProps> = ({ spec, onRender }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const renderIdRef = useRef(0);
+  const specRef = useRef(spec);
+  specRef.current = spec;
+  const rafRef = useRef(0);
 
-  const draw = useCallback(async (renderId: number) => {
+  const draw = useCallback(() => {
+    rafRef.current = 0;
+    const spec = specRef.current;
     const canvas = canvasRef.current;
     const container = containerRef.current;
     if (!canvas || !container) return;
 
     const sceneWidth = Math.max(1, spec.canvas.width);
     const sceneHeight = Math.max(1, spec.canvas.height);
-    const availableWidth = Math.max(1, container.clientWidth);
-    const availableHeight = Math.max(1, container.clientHeight);
+    const inset = 24;
+    const availableWidth = Math.max(1, container.clientWidth - inset);
+    const availableHeight = Math.max(1, container.clientHeight - inset);
     const scale = Math.min(availableWidth / sceneWidth, availableHeight / sceneHeight);
     const cssWidth = Math.max(1, Math.round(sceneWidth * scale));
     const cssHeight = Math.max(1, Math.round(sceneHeight * scale));
     const pixelRatio = Math.max(1, window.devicePixelRatio || 1);
+    const bw = Math.round(cssWidth * pixelRatio);
+    const bh = Math.round(cssHeight * pixelRatio);
 
-    canvas.width = Math.round(cssWidth * pixelRatio);
-    canvas.height = Math.round(cssHeight * pixelRatio);
-    canvas.style.width = `${cssWidth}px`;
-    canvas.style.height = `${cssHeight}px`;
+    // Only reallocate the backing store when its size actually changes.
+    if (canvas.width !== bw || canvas.height !== bh) {
+      canvas.width = bw;
+      canvas.height = bh;
+      canvas.style.width = `${cssWidth}px`;
+      canvas.style.height = `${cssHeight}px`;
+    }
 
     const context = canvas.getContext('2d');
     if (!context) return;
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    context.globalAlpha = 1;
+    context.globalCompositeOperation = 'source-over';
     context.setTransform(scale * pixelRatio, 0, 0, scale * pixelRatio, 0, 0);
     context.fillStyle = tokenToCss('paper', spec.customColors);
     context.fillRect(0, 0, sceneWidth, sceneHeight);
 
-    for (const block of spec.blocks) {
-      if (renderId !== renderIdRef.current) return;
-      drawSolidBlock(context, block, spec.customColors);
-    }
+    for (const block of spec.blocks) drawSolidBlock(context, block, spec.customColors);
+    if (spec.gradientBlock) drawGradientBlock(context, spec.gradientBlock, spec.gradientBlock.gradient, spec.customColors);
+    for (const texture of spec.textureRegions) drawTexture(context, texture, spec.customColors);
 
-    if (spec.gradientBlock) {
-      if (renderId !== renderIdRef.current) return;
-      drawGradientBlock(context, spec.gradientBlock, spec.gradientBlock.gradient, spec.customColors);
-    }
-
-    for (const texture of spec.textureRegions) {
-      if (renderId !== renderIdRef.current) return;
-      try {
-        const image = await loadTexture(texture, spec.customColors);
-        if (renderId !== renderIdRef.current) return;
-        context.save();
-        context.globalAlpha = texture.opacity;
-        context.drawImage(
-          image,
-          texture.region.x,
-          texture.region.y,
-          texture.region.width,
-          texture.region.height,
-        );
-        context.restore();
-      } catch {
-        // The rest of the preview remains useful if one SVG cannot be decoded.
-      }
-    }
-
-    context.save();
     context.fillStyle = tokenToCss('ink', spec.customColors);
     context.textBaseline = 'top';
     for (const label of spec.labels) {
-      if (renderId !== renderIdRef.current) return;
-      context.save();
       context.globalAlpha = label.opacity;
       context.font = `${label.size}px "${label.fontFamily}", "Times New Roman", serif`;
       context.fillText(label.text, label.x, label.y);
-      context.restore();
     }
-    context.restore();
+    context.globalAlpha = 1;
 
-    if (onRender && renderId === renderIdRef.current) {
-      onRender(canvas.toDataURL('image/png'));
-    }
-  }, [onRender, spec]);
+    if (onRender) onRender(canvas.toDataURL('image/png'));
+  }, [onRender]);
+
+  const schedule = useCallback(() => {
+    if (!rafRef.current) rafRef.current = requestAnimationFrame(draw);
+  }, [draw]);
+
+  useEffect(() => { schedule(); }, [spec, schedule]);
 
   useEffect(() => {
-    const redraw = () => {
-      const renderId = ++renderIdRef.current;
-      void draw(renderId);
-    };
-    redraw();
-
     const container = containerRef.current;
-    if (container && typeof ResizeObserver !== 'undefined') {
-      const observer = new ResizeObserver(redraw);
-      observer.observe(container);
-      return () => {
-        observer.disconnect();
-        renderIdRef.current += 1;
-      };
-    }
-
-    window.addEventListener('resize', redraw);
-    return () => {
-      window.removeEventListener('resize', redraw);
-      renderIdRef.current += 1;
-    };
-  }, [draw]);
+    const observer = container && typeof ResizeObserver !== 'undefined' ? new ResizeObserver(schedule) : null;
+    if (observer && container) observer.observe(container);
+    return () => { observer?.disconnect(); cancelAnimationFrame(rafRef.current); rafRef.current = 0; };
+  }, [schedule]);
 
   return (
     <div ref={containerRef} className="pf-preview-container">

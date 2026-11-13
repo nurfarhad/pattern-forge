@@ -1,4 +1,4 @@
-.pf-swatch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(24px, 1fr)); gap: 4px; }
+.pf-swatch-grid { display: grid; grid-template-columns: repeat(11, minmax(0, 1fr)); gap: 4px; }
 .pf-swatch-wrapper { position: relative; aspect-ratio: 1; }
 .pf-swatch {
   width: 100%; height: 100%; padding: 0; border: 0; border-radius: var(--tc-r-sm); cursor: pointer;

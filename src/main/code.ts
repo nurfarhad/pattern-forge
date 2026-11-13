@@ -23,6 +23,46 @@ figma.showUI(__html__, {
   title: 'Pattern Forge',
 });
 
+
+// ─── Live update queue ───────────────────────────────────────────────────────
+let liveRunning = false;
+let livePending: LiveUpdateMessage | null = null;
+
+async function drainLiveUpdates(): Promise<void> {
+  liveRunning = true;
+  try {
+    while (livePending) {
+      const msg = livePending;
+      livePending = null;
+          const { params, seed, targetFrameId } = msg;
+          try {
+            const target = figma.getNodeById(targetFrameId);
+            if (target && target.type === 'FRAME') {
+              const paramsWithSeed = { ...params, seed };
+              const { spec } = generateScene(paramsWithSeed, {
+                mode: 'fill',
+                shapes: [{
+                  nodeId: target.id,
+                  x: target.x,
+                  y: target.y,
+                  width: target.width,
+                  height: target.height,
+                  isRectangular: true,
+                }],
+              });
+              await renderInPlace(target, spec, paramsWithSeed);
+            }
+          } catch (err) {
+            // Silently ignore or notify if needed; live update shouldn't disrupt UI on intermediate frame
+            console.warn('Pattern Forge live update error:', err);
+          }
+
+    }
+  } finally {
+    liveRunning = false;
+  }
+}
+
 // ─── User presets storage (FR-12) ─────────────────────────────────────────────
 
 const CLIENT_STORAGE_PRESETS_KEY = 'patternForgeUserPresets';
@@ -90,29 +130,9 @@ figma.ui.onmessage = async (rawMsg: UIToMainMessage) => {
     }
 
     case 'LIVE_UPDATE': {
-      const msg = rawMsg as LiveUpdateMessage;
-      const { params, seed, targetFrameId } = msg;
-      try {
-        const target = figma.getNodeById(targetFrameId);
-        if (target && target.type === 'FRAME') {
-          const paramsWithSeed = { ...params, seed };
-          const { spec } = generateScene(paramsWithSeed, {
-            mode: 'fill',
-            shapes: [{
-              nodeId: target.id,
-              x: target.x,
-              y: target.y,
-              width: target.width,
-              height: target.height,
-              isRectangular: true,
-            }],
-          });
-          await renderInPlace(target, spec, paramsWithSeed);
-        }
-      } catch (err) {
-        // Silently ignore or notify if needed; live update shouldn't disrupt UI on intermediate frame
-        console.warn('Pattern Forge live update error:', err);
-      }
+      // Latest-wins queue: never overlap two in-place rebuilds.
+      livePending = rawMsg as LiveUpdateMessage;
+      if (!liveRunning) void drainLiveUpdates();
       break;
     }
 

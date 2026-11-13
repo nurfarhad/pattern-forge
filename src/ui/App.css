@@ -52,7 +52,7 @@ button, input, select, textarea { font-family: inherit; }
 .pf-body { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; }
 
 /* ─── Preview stage ─────────────────────────────────────────────────────── */
-.pf-stage { padding: 12px; border-bottom: 1px solid var(--tc-border); display: flex; flex-direction: column; gap: 10px; }
+.pf-stage { padding: 12px 12px 10px; border-bottom: 1px solid var(--tc-border); display: flex; flex-direction: column; gap: 10px; }
 .pf-stage__meta { display: flex; align-items: center; justify-content: space-between; height: 16px; }
 .pf-meta { font: 400 10px/12px var(--tc-mono); color: var(--tc-subtle-fg); font-variant-numeric: tabular-nums; }
 .pf-meta--warn { color: var(--tc-attention); }
@@ -89,3 +89,7 @@ button, input, select, textarea { font-family: inherit; }
 .pf-footer::before { content: ''; position: absolute; inset: -1px 0 auto; height: 1px; background: var(--tc-accent); transform-origin: left; transform: scaleX(0); opacity: 0; transition: transform .6s ease-out, opacity .2s; }
 .pf-footer.is-busy::before { transform: scaleX(1); opacity: 1; }
 .pf-footer .pf-btn--primary { flex: 1 1 0; min-width: 0; }
+
+/* number inputs: no native spinners (Toolcraft fields are clean) */
+.pf-input[type=number]::-webkit-inner-spin-button, .pf-input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.pf-input[type=number] { -moz-appearance: textfield; }

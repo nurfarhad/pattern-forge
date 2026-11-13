@@ -121,6 +121,7 @@ export const useParamsStore = create<ParamsStore>((set, get) => {
     isInserting: false,
 
     setParam(key, value) {
+      if (Object.is(get().params[key], value)) return;
       set((s) => {
         const newParams = { ...s.params, [key]: value };
         return { params: newParams, currentSpec: regenSpec(newParams, s.constraints) };

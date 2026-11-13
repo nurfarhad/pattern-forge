@@ -23,6 +23,7 @@ import type { BlendMode, PaletteToken, SourceMode } from '@generator/scene-spec'
 import { DEFAULT_PARAMS } from '@generator/scene-spec';
 import { OUTPUT_PRESETS, type OutputPresetKey } from '@generator/scene-spec';
 import { estimateNodeCount } from '@generator/layout';
+import { interaction } from './state/interaction';
 import { sendInsert, sendLiveUpdate, sendRequestSelectionInfo, onPluginMessage } from './bridge';
 
 // ─── App ─────────────────────────────────────────────────────────────────────
@@ -80,6 +81,7 @@ export const App: React.FC = () => {
       return;
     }
     if (constraints?.canLiveUpdate && constraints.liveTargetId) {
+      if (interaction.dragging) return; // pushed once on release instead
       if (liveTimerRef.current) {
         window.clearTimeout(liveTimerRef.current);
       }
@@ -93,6 +95,14 @@ export const App: React.FC = () => {
       }
     };
   }, [params, constraints?.canLiveUpdate, constraints?.liveTargetId]);
+
+  // ── Push the final value to the Figma frame once a drag ends ─────────────
+  useEffect(() => interaction.subscribe((dragging) => {
+    if (dragging) return;
+    const s = useParamsStore.getState();
+    const c = s.constraints;
+    if (c?.canLiveUpdate && c.liveTargetId) sendLiveUpdate(s.params, s.params.seed, c.liveTargetId);
+  }), []);
 
   // ── Estimated node count ─────────────────────────────────────────────────
   const nodeCount = estimateNodeCount(params);
@@ -192,7 +202,7 @@ export const App: React.FC = () => {
         </div>
 
         <Panel title="Source" id="pf-panel-source" onReset={() => setMode('none')}>
-          <Segmented<SourceMode> options={sourceOptions} value={mode} onChange={setMode} id="pf-source" />
+          {sourceOptions.length > 1 && <Segmented<SourceMode> options={sourceOptions} value={mode} onChange={setMode} id="pf-source" />}
           <p className="tc-hint">{sourceHint[mode]}</p>
         </Panel>
 
