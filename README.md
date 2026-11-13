@@ -16,6 +16,10 @@
   </tr>
 </table>
 
+## Publishing
+
+See [`PUBLISHING.md`](PUBLISHING.md) for the steps and [`community/LISTING.md`](community/LISTING.md) for the listing copy. Privacy: [`PRIVACY.md`](PRIVACY.md). License: MIT.
+
 ## Community assets
 
 | File | Use |
