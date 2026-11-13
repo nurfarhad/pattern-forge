@@ -11,11 +11,11 @@
 
 .tc-slider { position: relative; height: 18px; display: flex; align-items: center; touch-action: none; user-select: none; cursor: pointer; }
 .tc-slider:focus-visible { outline: none; }
-.tc-slider__track { position: absolute; inset-inline: 0; height: 1px; background: var(--tc-track); border-radius: 999px; }
-.tc-slider__range { position: absolute; left: 0; height: 1px; background: var(--tc-fg); border-radius: 999px; }
+.tc-slider__track { position: absolute; inset-inline: 0; height: 2px; background: var(--tc-track); border-radius: 999px; }
+.tc-slider__range { position: absolute; left: 0; height: 2px; background: var(--tc-fg); border-radius: 999px; }
 .tc-slider__tick { position: absolute; width: 1px; height: 5px; background: var(--tc-track); transform: translateX(-50%); }
 .tc-slider__thumb {
-  position: absolute; width: 9px; height: 9px; border-radius: 2px; background: var(--tc-fg);
+  position: absolute; width: 10px; height: 10px; border-radius: 2px; background: var(--tc-fg);
   transform: translateX(-50%); transition: transform .12s ease-out; cursor: pointer;
 }
 .tc-slider__thumb::before { content: ''; position: absolute; inset: -5px; }
